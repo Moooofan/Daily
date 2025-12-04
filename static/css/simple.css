@@ -1191,3 +1191,217 @@ body {
     background: var(--black);
     color: var(--white);
 }
+
+/* ===== 手機版優化 ===== */
+@media screen and (max-width: 480px) {
+    /* 基本佈局 */
+    .container {
+        padding: 15px 10px;
+        padding-bottom: 80px; /* 為底部導航留空間 */
+    }
+
+    /* 標題區更緊湊 */
+    .header {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+    }
+
+    .header > div {
+        text-align: left;
+    }
+
+    .app-title {
+        font-size: 1.8rem;
+    }
+
+    .app-subtitle {
+        display: none; /* 手機上隱藏副標題 */
+    }
+
+    .logout-btn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    /* 智能輸入區 */
+    .voice-section {
+        margin-bottom: 15px;
+    }
+
+    .smart-input-container textarea {
+        font-size: 16px; /* 防止 iOS 自動放大 */
+        padding: 12px;
+    }
+
+    .process-btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+
+    /* 主要內容區改為單欄 */
+    .content-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    /* 面板樣式 */
+    .panel {
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .panel h2 {
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+
+    /* 分頁按鈕 - 更大的觸控區域 */
+    .tabs {
+        margin-bottom: 12px;
+    }
+
+    .tab-btn {
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        min-height: 44px;
+    }
+
+    /* 排程控制區 */
+    .schedule-controls {
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .schedule-controls .date-input {
+        flex: 1;
+        min-width: 140px;
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .schedule-controls button {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+        min-height: 44px;
+    }
+
+    /* 隱藏不常用的按鈕文字，只顯示圖標 */
+    .google-btn,
+    .clear-btn {
+        padding: 10px;
+    }
+
+    /* 輸入框 */
+    .input-group input {
+        font-size: 16px;
+        padding: 12px;
+    }
+
+    .input-group button {
+        min-width: 50px;
+        font-size: 1.2rem;
+    }
+
+    /* 列表項目 - 更大的觸控區域 */
+    .list-item,
+    .schedule-item,
+    .quick-task-item {
+        padding: 14px 12px;
+        min-height: 50px;
+        margin-bottom: 8px;
+    }
+
+    .list-item label {
+        font-size: 0.95rem;
+        gap: 12px;
+    }
+
+    /* Checkbox 更大 */
+    .list-item input[type="checkbox"],
+    .schedule-item input[type="checkbox"],
+    .quick-task-item input[type="checkbox"] {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+    }
+
+    /* 排程項目 */
+    .schedule-item {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .schedule-time {
+        font-size: 0.85rem;
+        min-width: 90px;
+        font-weight: 600;
+    }
+
+    .schedule-title {
+        font-size: 0.95rem;
+        flex: 1;
+    }
+
+    /* 三點選單按鈕 */
+    .list-item button,
+    .schedule-item button,
+    .quick-task-item button {
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 1.2rem;
+    }
+
+    /* 碎片任務區 */
+    .quick-tasks-section {
+        margin-top: 15px;
+    }
+
+    .quick-tasks-header {
+        padding: 12px;
+        font-size: 1rem;
+    }
+
+    /* 建議框 */
+    .suggestion-box {
+        padding: 12px;
+        margin-top: 12px;
+    }
+
+    .suggestion-box h3 {
+        font-size: 0.95rem;
+    }
+
+    .suggestion-box p {
+        font-size: 0.9rem;
+    }
+
+    /* 模態框 - 全屏風格 */
+    .modal-content {
+        width: 95%;
+        max-width: none;
+        max-height: 90vh;
+        padding: 20px 15px;
+        border-radius: 12px;
+    }
+
+    .modal-content h3 {
+        font-size: 1.1rem;
+    }
+
+    .modal-content input {
+        font-size: 16px;
+        padding: 14px;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .modal-actions button {
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+    }
+}
