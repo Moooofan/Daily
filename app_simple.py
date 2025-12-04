@@ -20,8 +20,8 @@ def index():
     """首頁 - 需要 Google 登入"""
     # 檢查是否已經登入 Google
     if 'google_credentials' not in session:
-        print("⚠️ 用戶尚未登入 Google，重定向到授權頁面")
-        return redirect('/google/authorize')
+        print("⚠️ 用戶尚未登入 Google，顯示登入頁面")
+        return render_template('login.html')
 
     print("✅ 用戶已登入 Google，載入首頁")
     return render_template('index_simple.html')
