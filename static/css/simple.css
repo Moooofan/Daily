@@ -1,0 +1,1193 @@
+/* 極簡黑白灰設計 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --black: #000000;
+    --dark-gray: #333333;
+    --gray: #666666;
+    --light-gray: #999999;
+    --very-light-gray: #E5E5E5;
+    --white: #FFFFFF;
+    --accent: #4A4A4A; /* 深灰作為強調色 */
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: var(--white);
+    color: var(--black);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* 標題區 */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    border-bottom: 2px solid var(--black);
+    padding-bottom: 20px;
+}
+
+.header > div {
+    text-align: center;
+    flex: 1;
+}
+
+.app-title {
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
+.app-subtitle {
+    font-size: 0.9rem;
+    color: var(--gray);
+    font-weight: 400;
+    letter-spacing: 1px;
+}
+
+/* 智能輸入區 */
+.voice-section {
+    max-width: 800px;
+    margin: 0 auto 40px;
+}
+
+.smart-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.smart-input-container textarea {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid var(--black);
+    background: var(--white);
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.smart-input-container textarea:focus {
+    outline: none;
+    border-width: 3px;
+}
+
+.input-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.voice-btn-small {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid var(--black);
+    background: var(--white);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.voice-btn-small:hover {
+    background: var(--very-light-gray);
+}
+
+.voice-btn-small.recording {
+    background: var(--black);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.process-btn {
+    padding: 12px 30px;
+    border: 2px solid var(--black);
+    background: var(--black);
+    color: var(--white);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.process-btn:hover {
+    background: var(--white);
+    color: var(--black);
+}
+
+.voice-status {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: var(--gray);
+    min-height: 20px;
+    font-weight: 500;
+}
+
+.voice-hint {
+    margin-top: 10px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.voice-hint summary {
+    font-size: 0.85rem;
+    padding: 5px 0;
+}
+
+.voice-hint ul {
+    list-style-position: inside;
+    padding-left: 0;
+}
+
+.voice-hint li {
+    padding: 3px 0;
+}
+
+/* 主要內容網格 */
+.content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+/* 面板 */
+.panel {
+    border: 2px solid var(--black);
+    padding: 30px;
+    background: var(--white);
+}
+
+.panel h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* 輸入群組 */
+.input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--black);
+    background: var(--white);
+    font-size: 1rem;
+    outline: none;
+}
+
+.input-group input:focus {
+    border-width: 2px;
+}
+
+.input-group button {
+    width: 45px;
+    height: 45px;
+    border: 1px solid var(--black);
+    background: var(--white);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.input-group button:hover {
+    background: var(--black);
+    color: var(--white);
+}
+
+/* 列表 */
+.list {
+    min-height: 300px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* 待辦項目 */
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    border-bottom: 1px solid var(--very-light-gray);
+    transition: background 0.2s;
+}
+
+.todo-item:hover {
+    background: var(--very-light-gray);
+}
+
+.todo-item.completed .todo-content {
+    text-decoration: line-through;
+    color: var(--gray);
+    opacity: 0.6;
+}
+
+.todo-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.todo-content {
+    flex: 1;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.todo-time {
+    font-size: 0.85rem;
+    color: var(--gray);
+    padding: 4px 8px;
+    border: 1px solid var(--light-gray);
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.todo-time:hover {
+    border-color: var(--black);
+    background: var(--very-light-gray);
+}
+
+.todo-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.todo-actions button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.todo-actions button:hover {
+    background: var(--black);
+    color: var(--white);
+    border-color: var(--black);
+}
+
+/* 排程控制 */
+.schedule-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.date-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--black);
+    background: var(--white);
+    font-size: 1rem;
+}
+
+.suggest-btn {
+    padding: 10px 20px;
+    border: 2px solid var(--black);
+    background: var(--white);
+    color: var(--black);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.suggest-btn:hover {
+    background: var(--very-light-gray);
+}
+
+.generate-btn {
+    padding: 10px 25px;
+    border: 2px solid var(--black);
+    background: var(--black);
+    color: var(--white);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+}
+
+.generate-btn:hover {
+    background: var(--white);
+    color: var(--black);
+}
+
+/* 建議框 */
+.suggestion-box {
+    background: var(--very-light-gray);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--black);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--dark-gray);
+}
+
+/* 排程列表 */
+.schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.schedule-item {
+    display: grid;
+    grid-template-columns: 30px 100px 1fr 40px;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--very-light-gray);
+    background: var(--white);
+    transition: all 0.2s;
+    cursor: move;
+    position: relative;
+}
+
+.schedule-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.schedule-actions {
+    position: relative;
+}
+
+.schedule-menu-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.schedule-menu-btn:hover {
+    background: var(--very-light-gray);
+    border-color: var(--black);
+}
+
+.schedule-menu {
+    position: absolute;
+    right: 0;
+    top: 35px;
+    background: var(--white);
+    border: 2px solid var(--black);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    min-width: 120px;
+}
+
+.schedule-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    border: none;
+    background: var(--white);
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.schedule-menu button:hover {
+    background: var(--very-light-gray);
+}
+
+.schedule-menu button.danger {
+    color: #c00;
+}
+
+.schedule-menu button.danger:hover {
+    background: #fee;
+}
+
+.schedule-item:hover {
+    border-color: var(--black);
+    background: var(--very-light-gray);
+}
+
+/* 時間段背景色已移除，全部使用白底 */
+
+/* 已完成狀態 */
+.schedule-item.completed {
+    opacity: 0.5;
+}
+
+.schedule-item.completed .schedule-title {
+    text-decoration: line-through;
+    color: var(--gray);
+}
+
+/* 拖拉中樣式 */
+.schedule-item.dragging {
+    opacity: 0.5;
+    border: 2px dashed var(--black);
+}
+
+.schedule-time {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--gray);
+    font-family: 'Courier New', monospace;
+}
+
+.schedule-title {
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.schedule-delete {
+    padding: 4px 8px;
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.schedule-delete:hover {
+    border-color: var(--black);
+    background: var(--black);
+    color: var(--white);
+}
+
+/* 模態框 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--white);
+    padding: 30px;
+    border: 3px solid var(--black);
+    min-width: 400px;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--black);
+    background: var(--white);
+    font-size: 1rem;
+    margin-bottom: 15px;
+}
+
+.time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.time-inputs input {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    border: 1px solid var(--black);
+    background: var(--white);
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.modal-actions button:first-child {
+    background: var(--black);
+    color: var(--white);
+}
+
+.modal-actions button:hover {
+    opacity: 0.8;
+}
+
+/* Loading */
+.loading {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading.show {
+    display: flex;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--very-light-gray);
+    border-top: 4px solid var(--black);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 空狀態 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--light-gray);
+    font-size: 0.95rem;
+}
+
+/* 響應式 */
+@media (max-width: 768px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-content {
+        min-width: 90%;
+        margin: 20px;
+    }
+
+    .panel {
+        padding: 20px;
+    }
+}
+
+/* 滾動條樣式 */
+.list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.list::-webkit-scrollbar-track {
+    background: var(--very-light-gray);
+}
+
+.list::-webkit-scrollbar-thumb {
+    background: var(--gray);
+}
+
+.list::-webkit-scrollbar-thumb:hover {
+    background: var(--black);
+}
+
+/* 待辦分頁 */
+.todo-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--very-light-gray);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--gray);
+}
+
+.tab-btn:hover {
+    color: var(--black);
+    background: var(--very-light-gray);
+}
+
+.tab-btn.active {
+    color: var(--black);
+    border-bottom-color: var(--black);
+    font-weight: 600;
+}
+
+/* 碎片任務區塊 */
+.quick-tasks-section {
+    margin-bottom: 20px;
+    border: 2px solid var(--very-light-gray);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.quick-tasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 15px;
+    background: var(--very-light-gray);
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.quick-tasks-header:hover {
+    background: #d9d9d9;
+}
+
+.count-badge {
+    background: var(--black);
+    color: var(--white);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
+.toggle-icon {
+    font-size: 0.8rem;
+    transition: transform 0.3s;
+}
+
+.toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.quick-tasks-list {
+    max-height: 300px;
+    overflow-y: auto;
+    transition: max-height 0.3s ease;
+}
+
+.quick-tasks-list.collapsed {
+    max-height: 0;
+    overflow: hidden;
+}
+
+.quick-task-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--very-light-gray);
+    background: var(--white);
+    transition: background 0.2s;
+}
+
+.quick-task-item:hover {
+    background: #f9f9f9;
+}
+
+.quick-task-item:last-child {
+    border-bottom: none;
+}
+
+.quick-task-checkbox {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+    cursor: pointer;
+}
+
+.quick-task-content {
+    flex: 1;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.quick-task-time {
+    padding: 3px 8px;
+    background: var(--very-light-gray);
+    border-radius: 3px;
+    font-size: 0.8rem;
+    color: var(--gray);
+    margin-right: 8px;
+    font-weight: 600;
+}
+
+.quick-task-actions button {
+    background: none;
+    border: none;
+    color: var(--gray);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 8px;
+    transition: color 0.2s;
+}
+
+.quick-task-actions button:hover {
+    color: var(--black);
+}
+
+.quick-task-item.completed .quick-task-content {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+/* ===== 手機版響應式設計 ===== */
+
+/* 平板 (768px 以下) */
+@media screen and (max-width: 768px) {
+    .container {
+        padding: 20px 15px;
+    }
+
+    /* 標題縮小 */
+    .app-title {
+        font-size: 2rem;
+        letter-spacing: 1px;
+    }
+
+    .app-subtitle {
+        font-size: 0.8rem;
+    }
+
+    /* 主要內容改為上下排列 */
+    .content-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* 手機版：排程在上,待辦在下 */
+    .panel:first-child {
+        order: 2; /* 待辦面板排在下面 */
+    }
+
+    .panel:last-child {
+        order: 1; /* 排程面板排在上面 */
+    }
+
+    /* 輸入框調整 */
+    .input-group input {
+        font-size: 1rem;
+    }
+
+    /* 按鈕調整 */
+    button {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+
+    /* 待辦分頁調整 */
+    .todo-tabs {
+        gap: 5px;
+    }
+
+    .tab-btn {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+    }
+
+    /* 排程控制按鈕調整 */
+    .schedule-controls {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .schedule-controls button {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+    }
+
+    /* 列表項目調整 */
+    .list-item {
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+
+    /* 排程項目調整 */
+    .schedule-item {
+        padding: 12px;
+    }
+
+    .schedule-time {
+        font-size: 0.85rem;
+    }
+
+    .schedule-title {
+        font-size: 0.95rem;
+    }
+}
+
+/* 手機 (480px 以下) */
+@media screen and (max-width: 480px) {
+    .container {
+        padding: 15px 10px;
+    }
+
+    /* 更小的標題 */
+    .app-title {
+        font-size: 1.5rem;
+        letter-spacing: 0.5px;
+    }
+
+    .app-subtitle {
+        font-size: 0.75rem;
+    }
+
+    .header {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+    }
+
+    /* 智能輸入區 */
+    .voice-section {
+        margin-bottom: 20px;
+    }
+
+    .smart-input-container textarea {
+        min-height: 60px;
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+
+    .input-buttons {
+        gap: 8px;
+    }
+
+    .voice-btn-small {
+        width: 45px;
+        height: 45px;
+        font-size: 1.2rem;
+    }
+
+    .process-btn {
+        font-size: 0.9rem;
+        padding: 10px 15px;
+    }
+
+    /* 待辦分頁 */
+    .todo-tabs {
+        gap: 3px;
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        font-size: 0.75rem;
+        padding: 6px 10px;
+        flex: 1 1 45%;
+    }
+
+    /* 輸入組 */
+    .input-group {
+        gap: 8px;
+    }
+
+    .input-group input {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    .input-group button {
+        width: 40px;
+        font-size: 1.2rem;
+    }
+
+    /* Panel 標題 */
+    .panel h2 {
+        font-size: 1.2rem;
+        margin-bottom: 12px;
+    }
+
+    /* 列表項目 */
+    .list-item {
+        padding: 10px;
+        font-size: 0.9rem;
+        gap: 8px;
+    }
+
+    .list-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* 待辦項目時間標籤 */
+    .todo-time {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
+    .todo-actions button {
+        width: 30px;
+        height: 30px;
+        font-size: 0.9rem;
+    }
+
+    /* 排程控制 */
+    .schedule-controls {
+        gap: 5px;
+    }
+
+    .date-input {
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+
+    .schedule-controls button {
+        font-size: 0.75rem;
+        padding: 6px 10px;
+    }
+
+    /* 排程項目 */
+    .schedule-item {
+        padding: 10px;
+        gap: 8px;
+    }
+
+    .schedule-time {
+        font-size: 0.75rem;
+        min-width: 80px;
+    }
+
+    .schedule-title {
+        font-size: 0.9rem;
+    }
+
+    .schedule-actions button {
+        width: 30px;
+        height: 30px;
+        font-size: 0.9rem;
+    }
+
+    /* 碎片任務區塊 */
+    .quick-tasks-header {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+
+    .count-badge {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+    }
+
+    .quick-task-item {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+
+    .quick-task-checkbox {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* 建議框 */
+    .suggestion-box {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+
+    .suggestion-box h3 {
+        font-size: 1rem;
+    }
+
+    /* 模態框 */
+    .modal-content {
+        width: 90%;
+        padding: 20px;
+    }
+
+    .modal-content input[type="text"],
+    .modal-content input[type="time"] {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    .modal-actions {
+        gap: 8px;
+    }
+
+    .modal-actions button {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+
+    /* Loading */
+    .spinner {
+        width: 40px;
+        height: 40px;
+    }
+
+    /* 語音狀態 */
+    .voice-status {
+        font-size: 0.85rem;
+        padding: 8px;
+    }
+}
+
+/* 極小手機 (360px 以下) */
+@media screen and (max-width: 360px) {
+    .container {
+        padding: 10px 8px;
+    }
+
+    .app-title {
+        font-size: 1.3rem;
+    }
+
+    .app-subtitle {
+        font-size: 0.7rem;
+    }
+
+    .tab-btn {
+        font-size: 0.7rem;
+        padding: 5px 8px;
+    }
+
+    .list-item {
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+
+    .schedule-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .schedule-time {
+        min-width: auto;
+    }
+}
+
+/* 觸控優化 */
+@media (hover: none) and (pointer: coarse) {
+    /* 增加觸控目標大小 */
+    button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    input[type="checkbox"] {
+        min-width: 22px;
+        min-height: 22px;
+    }
+
+    .list-item,
+    .schedule-item,
+    .quick-task-item {
+        min-height: 44px;
+    }
+
+    /* 移除 hover 效果,使用 active 代替 */
+    button:hover {
+        background: none;
+    }
+
+    button:active {
+        background: var(--very-light-gray);
+        transform: scale(0.98);
+    }
+
+    .list-item:hover,
+    .schedule-item:hover,
+    .quick-task-item:hover {
+        background: none;
+    }
+
+    .list-item:active,
+    .schedule-item:active,
+    .quick-task-item:active {
+        background: var(--very-light-gray);
+    }
+}
+
+/* 橫向模式優化 */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    .container {
+        padding: 15px;
+    }
+
+    .header {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+    }
+
+    .app-title {
+        font-size: 1.5rem;
+    }
+
+    .voice-section {
+        margin-bottom: 15px;
+    }
+
+    .content-grid {
+        gap: 15px;
+    }
+}
+
+/* 登出按鈕 */
+.logout-btn {
+    padding: 8px 16px;
+    background: var(--white);
+    color: var(--black);
+    border: 1px solid var(--black);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.logout-btn:hover {
+    background: var(--black);
+    color: var(--white);
+}

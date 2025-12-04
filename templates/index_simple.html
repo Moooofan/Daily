@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily</title>
+
+    <!-- PWA 支援 -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Daily">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+
+    <link rel="stylesheet" href="/static/css/simple.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 標題區 -->
+        <header class="header">
+            <div>
+                <h1 class="app-title">Daily</h1>
+                <p class="app-subtitle">每日排程系統</p>
+            </div>
+            <a href="/google/logout" class="logout-btn" title="登出 Google 帳號">🚪 登出</a>
+        </header>
+
+        <!-- 智能輸入區 -->
+        <div class="voice-section">
+            <div class="smart-input-container">
+                <textarea id="smartInput" placeholder="輸入或貼上你的任務... 例如：早上9點開會，記得買牛奶" rows="2"></textarea>
+                <div class="input-buttons">
+                    <button id="voiceBtn" class="voice-btn-small" title="語音輸入（實驗性）">
+                        <span id="voiceIcon">🎤</span>
+                    </button>
+                    <button id="processBtn" class="process-btn">AI 整理</button>
+                </div>
+            </div>
+            <div id="voiceStatus" class="voice-status"></div>
+        </div>
+
+        <!-- 主要內容區 -->
+        <div class="content-grid">
+            <!-- 左：待辦事項 -->
+            <div class="panel">
+                <h2>待辦</h2>
+
+                <!-- 待辦類型切換 -->
+                <div class="todo-tabs">
+                    <button class="tab-btn active" data-type="daily">日待辦</button>
+                    <button class="tab-btn" data-type="weekly">週待辦</button>
+                    <button class="tab-btn" data-type="monthly">月待辦</button>
+                    <button class="tab-btn" data-type="quick">⚡碎片</button>
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="todoInput" placeholder="新增待辦事項..." />
+                    <button id="addTodoBtn">+</button>
+                </div>
+                <div id="todoList" class="list"></div>
+            </div>
+
+            <!-- 右：今日排程 -->
+            <div class="panel">
+                <h2>今日排程</h2>
+                <div class="schedule-controls">
+                    <input type="date" id="scheduleDate" class="date-input" />
+                    <button id="googleImportBtn" class="google-btn" title="從 Google Calendar 匯入">📅 匯入</button>
+                    <button id="suggestBtn" class="suggest-btn" title="AI 推薦現在可做的事">💡 有空</button>
+                    <button id="generateBtn" class="generate-btn">生成</button>
+                    <button id="clearScheduleBtn" class="clear-btn" title="刪除整日排程">🗑️ 清空</button>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="scheduleInput" placeholder="新增排程項目..." />
+                    <button id="addScheduleBtn">+</button>
+                </div>
+                <div id="suggestion" class="suggestion-box" style="display: none;"></div>
+
+                <!-- 碎片任務區塊 -->
+                <div class="quick-tasks-section">
+                    <div class="quick-tasks-header" onclick="toggleQuickTasks()">
+                        <span>⚡ 碎片任務</span>
+                        <span id="quickTaskCount" class="count-badge">0</span>
+                        <span id="quickTaskToggle" class="toggle-icon">▼</span>
+                    </div>
+                    <div id="quickTasksList" class="quick-tasks-list"></div>
+                </div>
+
+                <div id="scheduleList" class="list schedule-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯模態框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <input type="text" id="editInput" />
+            <div class="modal-actions">
+                <button id="saveEdit">儲存</button>
+                <button id="cancelEdit">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 排程編輯模態框 -->
+    <div id="scheduleEditModal" class="modal">
+        <div class="modal-content">
+            <input type="text" id="scheduleTitle" placeholder="標題" />
+            <div class="time-inputs">
+                <input type="time" id="scheduleStart" />
+                <span>-</span>
+                <input type="time" id="scheduleEnd" />
+            </div>
+            <div class="modal-actions">
+                <button id="saveSchedule">儲存</button>
+                <button id="cancelSchedule">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="/static/js/simple.js"></script>
+
+    <!-- PWA Service Worker 註冊 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('SW registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
