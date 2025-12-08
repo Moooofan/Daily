@@ -11,8 +11,20 @@ app.secret_key = Config.SECRET_KEY
 
 # 初始化
 db = SimpleDatabase()
-ai = AIHelper()
 gcal = GoogleCalendarHelper()
+
+# AI Helper 延遲初始化（避免啟動時缺少 API Key 導致錯誤）
+ai = None
+
+def get_ai():
+    global ai
+    if ai is None:
+        try:
+            ai = AIHelper()
+        except Exception as e:
+            print(f"⚠️ AI Helper 初始化失敗: {e}")
+            return None
+    return ai
 
 
 @app.route('/')
@@ -139,7 +151,10 @@ def process_voice():
     text = data.get('text', '')
 
     try:
-        result = ai.process_voice_input(text)
+        ai_helper = get_ai()
+        if not ai_helper:
+            return jsonify({'success': False, 'error': 'AI 服務未設定'}), 500
+        result = ai_helper.process_voice_input(text)
 
         # 去重處理：使用 dict 來過濾重複的 schedules
         seen_schedules = {}
@@ -208,13 +223,17 @@ def generate_schedule():
     current_time = data.get('current_time')  # 前端可以傳遞當前時間
 
     try:
+        ai_helper = get_ai()
+        if not ai_helper:
+            return jsonify({'success': False, 'error': 'AI 服務未設定'}), 500
+
         # 只取得「日待辦」事項來生成排程
         # 週待辦、月待辦等使用者說有空時再手動加入
         todos = db.get_todos(todo_type='daily')
         uncompleted_todos = [t for t in todos if not t.get('completed')]
 
         # AI 生成排程（傳入完整待辦資訊，包含預計時間）
-        schedule_items = ai.generate_daily_schedule(uncompleted_todos, date_str, current_time)
+        schedule_items = ai_helper.generate_daily_schedule(uncompleted_todos, date_str, current_time)
 
         # 儲存到資料庫
         db.batch_add_schedule(date_str, schedule_items)
@@ -242,12 +261,16 @@ def suggest_now():
         current_time = now.strftime('%H:%M')
         date_str = now.strftime('%Y-%m-%d')
 
+        ai_helper = get_ai()
+        if not ai_helper:
+            return jsonify({'success': False, 'error': 'AI 服務未設定'}), 500
+
         # 取得今日排程和未完成待辦
         schedule = db.get_schedule(date_str)
         uncompleted_todos = db.get_uncompleted_todos_by_date()
 
         # 呼叫 AI Helper 的建議方法
-        result = ai.suggest_now_activity(schedule, uncompleted_todos, current_time)
+        result = ai_helper.suggest_now_activity(schedule, uncompleted_todos, current_time)
 
         return jsonify({
             'success': True,
@@ -313,8 +336,12 @@ def suggest_reschedule():
                 'suggestions': []
             })
 
+        ai_helper = get_ai()
+        if not ai_helper:
+            return jsonify({'success': False, 'error': 'AI 服務未設定'}), 500
+
         # 呼叫 AI 生成重排建議
-        result = ai.suggest_reschedule(delayed_items, date_str)
+        result = ai_helper.suggest_reschedule(delayed_items, date_str)
 
         return jsonify({
             'success': True,

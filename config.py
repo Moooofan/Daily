@@ -15,10 +15,13 @@ class Config:
     # OpenAI API
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
+    # Anthropic API (Claude)
+    ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+
     # Google Calendar API
     GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-    GOOGLE_REDIRECT_URI = 'http://localhost:5001/oauth2callback'
+    GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/oauth2callback')
     GOOGLE_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
     # 資料庫
