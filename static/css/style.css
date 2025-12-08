@@ -1685,11 +1685,14 @@ body {
 .import-remember input[type="checkbox"] {
     width: 16px;
     height: 16px;
+    margin: 0;
+    flex-shrink: 0;
     cursor: pointer;
 }
 
 .import-remember span {
     user-select: none;
+    line-height: 16px;
 }
 
 /* 手機版匯入彈窗 */
