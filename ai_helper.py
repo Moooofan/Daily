@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from openai import OpenAI
 from config import Config
 import json
+import os
+import httpx
 
 
 class AIHelper:
@@ -13,7 +15,10 @@ class AIHelper:
         self.api_key = api_key or Config.OPENAI_API_KEY
         if not self.api_key:
             raise ValueError("需要提供 OpenAI API Key")
-        self.client = OpenAI(api_key=self.api_key)
+
+        # 清除可能導致問題的 proxy 環境變數
+        http_client = httpx.Client()
+        self.client = OpenAI(api_key=self.api_key, http_client=http_client)
 
     def _clean_json_response(self, text: str) -> str:
         """移除 AI 回應中的 markdown 標記"""
