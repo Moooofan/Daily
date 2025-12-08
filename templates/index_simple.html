@@ -66,7 +66,6 @@
                 <h2>今日排程</h2>
                 <div class="schedule-controls">
                     <input type="date" id="scheduleDate" class="date-input" />
-                    <button id="googleImportBtn" class="google-btn" title="從 Google Calendar 匯入">📅 匯入</button>
                     <button id="suggestBtn" class="suggest-btn" title="AI 推薦現在可做的事">💡 有空</button>
                     <button id="generateBtn" class="generate-btn">生成</button>
                     <button id="clearScheduleBtn" class="clear-btn" title="刪除整日排程">🗑️ 清空</button>
@@ -76,6 +75,22 @@
                     <button id="addScheduleBtn">+</button>
                 </div>
                 <div id="suggestion" class="suggestion-box" style="display: none;"></div>
+
+                <!-- 每日固定排程區塊 -->
+                <div class="routines-section">
+                    <div class="routines-header" onclick="toggleRoutines()">
+                        <span>🔄 每日固定排程</span>
+                        <span id="routineCount" class="count-badge">0</span>
+                        <span id="routineToggle" class="toggle-icon">▼</span>
+                    </div>
+                    <div id="routinesList" class="routines-list">
+                        <div class="routine-input-group">
+                            <input type="text" id="routineInput" placeholder="新增固定排程..." />
+                            <button id="addRoutineBtn">+</button>
+                        </div>
+                        <div id="routineItems"></div>
+                    </div>
+                </div>
 
                 <!-- 碎片任務區塊 -->
                 <div class="quick-tasks-section">
@@ -108,9 +123,17 @@
         <div class="modal-content">
             <input type="text" id="scheduleTitle" placeholder="標題" />
             <div class="time-inputs">
-                <input type="time" id="scheduleStart" />
-                <span>-</span>
-                <input type="time" id="scheduleEnd" />
+                <div class="time-select-group">
+                    <select id="scheduleStartHour" class="time-select"></select>
+                    <span class="time-colon">:</span>
+                    <select id="scheduleStartMin" class="time-select"></select>
+                </div>
+                <span class="time-separator">～</span>
+                <div class="time-select-group">
+                    <select id="scheduleEndHour" class="time-select"></select>
+                    <span class="time-colon">:</span>
+                    <select id="scheduleEndMin" class="time-select"></select>
+                </div>
             </div>
             <div class="modal-actions">
                 <button id="saveSchedule">儲存</button>
@@ -119,9 +142,51 @@
         </div>
     </div>
 
+    <!-- 固定排程編輯模態框 -->
+    <div id="routineEditModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 15px;">編輯固定排程</h3>
+            <input type="text" id="routineTitle" placeholder="標題" />
+            <div class="time-inputs">
+                <div class="time-select-group">
+                    <select id="routineStartHour" class="time-select"></select>
+                    <span class="time-colon">:</span>
+                    <select id="routineStartMin" class="time-select"></select>
+                </div>
+                <span class="time-separator">～</span>
+                <div class="time-select-group">
+                    <select id="routineEndHour" class="time-select"></select>
+                    <span class="time-colon">:</span>
+                    <select id="routineEndMin" class="time-select"></select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="saveRoutine">儲存</button>
+                <button id="cancelRoutine">取消</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading -->
     <div id="loading" class="loading">
         <div class="spinner"></div>
+    </div>
+
+    <!-- Google Calendar 匯入確認彈窗 -->
+    <div id="importModal" class="modal">
+        <div class="modal-content import-modal-content">
+            <div class="import-modal-icon">📅</div>
+            <h3>匯入 Google Calendar</h3>
+            <p class="import-modal-desc">是否要將 Google Calendar 的行程匯入到今日排程？</p>
+            <div class="modal-actions import-modal-actions">
+                <button id="confirmImport" class="import-confirm-btn">匯入</button>
+                <button id="skipImport" class="import-skip-btn">略過</button>
+            </div>
+            <label class="import-remember">
+                <input type="checkbox" id="rememberChoice" />
+                <span>記住我的選擇（本次登入期間）</span>
+            </label>
+        </div>
     </div>
 
     <script src="/static/js/simple.js"></script>

@@ -562,6 +562,68 @@ def import_google_events():
         }), 500
 
 
+# ===== 每日固定排程 API =====
+
+@app.route('/api/routines', methods=['GET'])
+def get_routines():
+    """取得所有每日固定排程"""
+    routines = db.get_routines()
+    return jsonify(routines)
+
+
+@app.route('/api/routines', methods=['POST'])
+def add_routine():
+    """新增每日固定排程"""
+    data = request.json
+    routine_id = db.add_routine(
+        data['title'],
+        data['start_time'],
+        data['end_time']
+    )
+    return jsonify({'id': routine_id, 'success': True})
+
+
+@app.route('/api/routines/<int:routine_id>', methods=['PUT'])
+def update_routine(routine_id):
+    """更新每日固定排程"""
+    data = request.json
+    db.update_routine(
+        routine_id,
+        title=data.get('title'),
+        start_time=data.get('start_time'),
+        end_time=data.get('end_time'),
+        enabled=data.get('enabled')
+    )
+    return jsonify({'success': True})
+
+
+@app.route('/api/routines/<int:routine_id>', methods=['DELETE'])
+def delete_routine(routine_id):
+    """刪除每日固定排程"""
+    db.delete_routine(routine_id)
+    return jsonify({'success': True})
+
+
+@app.route('/api/routines/<int:routine_id>/toggle', methods=['POST'])
+def toggle_routine(routine_id):
+    """切換每日固定排程的啟用狀態"""
+    db.toggle_routine_enabled(routine_id)
+    return jsonify({'success': True})
+
+
+@app.route('/api/routines/apply', methods=['POST'])
+def apply_routines():
+    """將固定排程套用到指定日期"""
+    data = request.json
+    date_str = data.get('date', date.today().isoformat())
+    added_count = db.apply_routines_to_date(date_str)
+    return jsonify({
+        'success': True,
+        'added': added_count,
+        'date': date_str
+    })
+
+
 if __name__ == '__main__':
     port = 5001
     print("=" * 60)

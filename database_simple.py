@@ -77,6 +77,19 @@ class SimpleDatabase:
             # 如果索引已存在或其他錯誤，忽略
             pass
 
+        # 每日固定排程表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_routines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                enabled BOOLEAN DEFAULT 1,
+                display_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -360,3 +373,102 @@ class SimpleDatabase:
                 grouped[todo_type].append(todo)
 
         return grouped
+
+    # ===== 每日固定排程 =====
+
+    def add_routine(self, title: str, start_time: str, end_time: str) -> int:
+        """新增每日固定排程"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO daily_routines (title, start_time, end_time)
+            VALUES (?, ?, ?)
+        ''', (title, start_time, end_time))
+        routine_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return routine_id
+
+    def get_routines(self, enabled_only: bool = False) -> List[Dict]:
+        """取得所有每日固定排程"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        if enabled_only:
+            cursor.execute('SELECT * FROM daily_routines WHERE enabled = 1 ORDER BY start_time')
+        else:
+            cursor.execute('SELECT * FROM daily_routines ORDER BY start_time')
+        routines = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return routines
+
+    def update_routine(self, routine_id: int, title: str = None, start_time: str = None,
+                       end_time: str = None, enabled: bool = None):
+        """更新每日固定排程"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        updates = []
+        values = []
+
+        if title is not None:
+            updates.append('title = ?')
+            values.append(title)
+        if start_time is not None:
+            updates.append('start_time = ?')
+            values.append(start_time)
+        if end_time is not None:
+            updates.append('end_time = ?')
+            values.append(end_time)
+        if enabled is not None:
+            updates.append('enabled = ?')
+            values.append(1 if enabled else 0)
+
+        if updates:
+            values.append(routine_id)
+            cursor.execute(
+                f"UPDATE daily_routines SET {', '.join(updates)} WHERE id = ?",
+                values
+            )
+            conn.commit()
+
+        conn.close()
+
+    def delete_routine(self, routine_id: int):
+        """刪除每日固定排程"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM daily_routines WHERE id = ?', (routine_id,))
+        conn.commit()
+        conn.close()
+
+    def toggle_routine_enabled(self, routine_id: int):
+        """切換每日固定排程的啟用狀態"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE daily_routines
+            SET enabled = CASE WHEN enabled = 0 THEN 1 ELSE 0 END
+            WHERE id = ?
+        ''', (routine_id,))
+        conn.commit()
+        conn.close()
+
+    def apply_routines_to_date(self, date_str: str) -> int:
+        """將啟用的固定排程套用到指定日期，返回新增數量"""
+        routines = self.get_routines(enabled_only=True)
+        added_count = 0
+
+        for routine in routines:
+            try:
+                self.add_schedule_item(
+                    date_str,
+                    routine['title'],
+                    routine['start_time'],
+                    routine['end_time']
+                )
+                added_count += 1
+            except:
+                # 如果已存在則跳過
+                pass
+
+        return added_count

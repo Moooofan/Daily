@@ -368,7 +368,7 @@ body {
 
 .schedule-item {
     display: grid;
-    grid-template-columns: 30px 100px 1fr 40px;
+    grid-template-columns: 30px 100px 1fr 30px 40px;
     align-items: center;
     gap: 10px;
     padding: 12px;
@@ -475,7 +475,25 @@ body {
 
 .schedule-title {
     font-size: 1rem;
+    cursor: default;
+}
+
+.schedule-edit-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    font-size: 1rem;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.schedule-edit-btn:hover {
+    background: var(--very-light-gray);
+    border-color: var(--black);
 }
 
 .schedule-delete {
@@ -529,13 +547,55 @@ body {
 .time-inputs {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 15px;
     margin-bottom: 15px;
 }
 
 .time-inputs input {
     flex: 1;
     margin-bottom: 0;
+}
+
+/* 時間選擇器 */
+.time-select-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.time-select {
+    padding: 12px 8px;
+    border: 1px solid var(--black);
+    background: var(--white);
+    font-size: 1.1rem;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    min-width: 60px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 24px;
+}
+
+.time-select:focus {
+    outline: none;
+    border-width: 2px;
+}
+
+.time-colon {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+.time-separator {
+    font-size: 1.2rem;
+    color: var(--gray);
+    padding: 0 5px;
 }
 
 .modal-actions {
@@ -664,6 +724,146 @@ body {
     color: var(--black);
     border-bottom-color: var(--black);
     font-weight: 600;
+}
+
+/* 每日固定排程區塊 */
+.routines-section {
+    margin-bottom: 15px;
+    border: 2px solid var(--very-light-gray);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.routines-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 15px;
+    background: var(--very-light-gray);
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.routines-header:hover {
+    background: #d9d9d9;
+}
+
+.routines-list {
+    max-height: 400px;
+    overflow-y: auto;
+    transition: max-height 0.3s ease;
+}
+
+.routines-list.collapsed {
+    max-height: 0;
+    overflow: hidden;
+}
+
+.routine-input-group {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid var(--very-light-gray);
+}
+
+.routine-input-group input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--light-gray);
+    font-size: 0.95rem;
+}
+
+.routine-input-group button {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--black);
+    background: var(--white);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.routine-input-group button:hover {
+    background: var(--black);
+    color: var(--white);
+}
+
+.routine-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--very-light-gray);
+    background: var(--white);
+    gap: 10px;
+}
+
+.routine-item:hover {
+    background: #f9f9f9;
+}
+
+.routine-item:last-child {
+    border-bottom: none;
+}
+
+.routine-toggle {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.routine-time {
+    font-size: 0.85rem;
+    color: var(--gray);
+    font-family: 'Courier New', monospace;
+    min-width: 100px;
+}
+
+.routine-title {
+    flex: 1;
+    font-size: 0.95rem;
+}
+
+.routine-item.disabled .routine-title,
+.routine-item.disabled .routine-time {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.routine-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.routine-actions button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.routine-actions button:hover {
+    background: var(--very-light-gray);
+    border-color: var(--black);
+}
+
+.routine-actions button.danger:hover {
+    background: #fee;
+    border-color: #c00;
+}
+
+.routine-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--light-gray);
+    font-size: 0.9rem;
 }
 
 /* 碎片任務區塊 */
@@ -988,23 +1188,25 @@ body {
 
     /* 排程項目 */
     .schedule-item {
+        grid-template-columns: 22px 75px 1fr 28px 36px;
         padding: 10px;
-        gap: 8px;
+        gap: 6px;
     }
 
     .schedule-time {
         font-size: 0.75rem;
-        min-width: 80px;
+        min-width: auto;
     }
 
     .schedule-title {
         font-size: 0.9rem;
     }
 
+    .schedule-edit-btn,
     .schedule-actions button {
-        width: 30px;
-        height: 30px;
-        font-size: 0.9rem;
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
     }
 
     /* 碎片任務區塊 */
@@ -1403,5 +1605,146 @@ body {
         width: 100%;
         padding: 14px;
         font-size: 1rem;
+    }
+}
+
+/* ===== 匯入確認彈窗 ===== */
+.import-modal-content {
+    text-align: center;
+    max-width: 360px;
+}
+
+.import-modal-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.import-modal-content h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.import-modal-desc {
+    color: var(--gray);
+    font-size: 0.95rem;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.import-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.import-confirm-btn {
+    flex: 1;
+    padding: 14px 24px !important;
+    background: var(--black) !important;
+    color: var(--white) !important;
+    border: 2px solid var(--black) !important;
+    font-size: 1rem !important;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.import-confirm-btn:hover {
+    background: var(--white) !important;
+    color: var(--black) !important;
+}
+
+.import-skip-btn {
+    flex: 1;
+    padding: 14px 24px !important;
+    background: var(--white) !important;
+    color: var(--black) !important;
+    border: 2px solid var(--very-light-gray) !important;
+    font-size: 1rem !important;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.import-skip-btn:hover {
+    border-color: var(--black) !important;
+}
+
+.import-remember {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--gray);
+    cursor: pointer;
+}
+
+.import-remember input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.import-remember span {
+    user-select: none;
+}
+
+/* 手機版匯入彈窗 */
+@media screen and (max-width: 480px) {
+    .import-modal-content {
+        padding: 25px 20px;
+    }
+
+    .import-modal-icon {
+        font-size: 2.5rem;
+    }
+
+    .import-modal-content h3 {
+        font-size: 1.1rem;
+    }
+
+    .import-modal-desc {
+        font-size: 0.9rem;
+    }
+
+    .import-modal-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .import-confirm-btn,
+    .import-skip-btn {
+        width: 100%;
+    }
+
+    /* 手機版時間選擇器 */
+    .time-inputs {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .time-select-group {
+        gap: 2px;
+    }
+
+    .time-select {
+        padding: 10px 6px;
+        font-size: 1rem;
+        min-width: 55px;
+        padding-right: 20px;
+    }
+
+    .time-colon {
+        font-size: 1rem;
+    }
+
+    .time-separator {
+        font-size: 1rem;
+        width: 100%;
+        text-align: center;
+        padding: 5px 0;
     }
 }

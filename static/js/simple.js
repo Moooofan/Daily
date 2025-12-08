@@ -5,7 +5,8 @@ const state = {
     currentEditId: null,
     currentEditType: null, // 'todo' or 'schedule'
     currentTodoType: 'daily', // 'daily', 'weekly', 'monthly'
-    recognition: null
+    recognition: null,
+    currentRoutineId: null // 固定排程編輯用
 };
 
 // DOM 元素
@@ -29,14 +30,37 @@ const el = {
     suggestBtn: document.getElementById('suggestBtn'),
     generateBtn: document.getElementById('generateBtn'),
     clearScheduleBtn: document.getElementById('clearScheduleBtn'),
-    googleImportBtn: document.getElementById('googleImportBtn'),
     suggestion: document.getElementById('suggestion'),
     scheduleList: document.getElementById('scheduleList'),
+
+    // 匯入彈窗
+    importModal: document.getElementById('importModal'),
+    confirmImport: document.getElementById('confirmImport'),
+    skipImport: document.getElementById('skipImport'),
+    rememberChoice: document.getElementById('rememberChoice'),
 
     // 碎片任務
     quickTasksList: document.getElementById('quickTasksList'),
     quickTaskCount: document.getElementById('quickTaskCount'),
     quickTaskToggle: document.getElementById('quickTaskToggle'),
+
+    // 固定排程
+    routinesList: document.getElementById('routinesList'),
+    routineItems: document.getElementById('routineItems'),
+    routineCount: document.getElementById('routineCount'),
+    routineToggle: document.getElementById('routineToggle'),
+    routineInput: document.getElementById('routineInput'),
+    addRoutineBtn: document.getElementById('addRoutineBtn'),
+
+    // 固定排程編輯彈窗
+    routineEditModal: document.getElementById('routineEditModal'),
+    routineTitle: document.getElementById('routineTitle'),
+    routineStartHour: document.getElementById('routineStartHour'),
+    routineStartMin: document.getElementById('routineStartMin'),
+    routineEndHour: document.getElementById('routineEndHour'),
+    routineEndMin: document.getElementById('routineEndMin'),
+    saveRoutine: document.getElementById('saveRoutine'),
+    cancelRoutine: document.getElementById('cancelRoutine'),
 
     // 模態框
     editModal: document.getElementById('editModal'),
@@ -46,8 +70,10 @@ const el = {
 
     scheduleEditModal: document.getElementById('scheduleEditModal'),
     scheduleTitle: document.getElementById('scheduleTitle'),
-    scheduleStart: document.getElementById('scheduleStart'),
-    scheduleEnd: document.getElementById('scheduleEnd'),
+    scheduleStartHour: document.getElementById('scheduleStartHour'),
+    scheduleStartMin: document.getElementById('scheduleStartMin'),
+    scheduleEndHour: document.getElementById('scheduleEndHour'),
+    scheduleEndMin: document.getElementById('scheduleEndMin'),
     saveSchedule: document.getElementById('saveSchedule'),
     cancelSchedule: document.getElementById('cancelSchedule'),
 
@@ -66,6 +92,9 @@ function init() {
     const today = new Date().toISOString().split('T')[0];
     el.scheduleDate.value = today;
 
+    // 初始化時間選擇器
+    initTimeSelects();
+
     // 初始化語音辨識
     initSpeechRecognition();
 
@@ -73,6 +102,55 @@ function init() {
     loadTodos();
     loadSchedule(today);
     loadQuickTasks();
+    loadRoutines();
+
+    // 檢查是否需要顯示匯入彈窗
+    checkAndShowImportModal();
+}
+
+// 初始化時間選擇器
+function initTimeSelects() {
+    // 填充小時選項 (00-23)
+    const hourSelects = [
+        el.scheduleStartHour, el.scheduleEndHour,
+        el.routineStartHour, el.routineEndHour
+    ];
+    hourSelects.forEach(select => {
+        for (let h = 0; h < 24; h++) {
+            const option = document.createElement('option');
+            option.value = h.toString().padStart(2, '0');
+            option.textContent = h.toString().padStart(2, '0');
+            select.appendChild(option);
+        }
+    });
+
+    // 填充分鐘選項 (00, 05, 10, ... 55)
+    const minSelects = [
+        el.scheduleStartMin, el.scheduleEndMin,
+        el.routineStartMin, el.routineEndMin
+    ];
+    minSelects.forEach(select => {
+        for (let m = 0; m < 60; m += 5) {
+            const option = document.createElement('option');
+            option.value = m.toString().padStart(2, '0');
+            option.textContent = m.toString().padStart(2, '0');
+            select.appendChild(option);
+        }
+    });
+
+    // 設定預設值（當前時間的下一個整點）
+    const now = new Date();
+    const currentHour = now.getHours();
+    el.scheduleStartHour.value = currentHour.toString().padStart(2, '0');
+    el.scheduleStartMin.value = '00';
+    el.scheduleEndHour.value = ((currentHour + 1) % 24).toString().padStart(2, '0');
+    el.scheduleEndMin.value = '00';
+
+    // 固定排程預設值
+    el.routineStartHour.value = '09';
+    el.routineStartMin.value = '00';
+    el.routineEndHour.value = '10';
+    el.routineEndMin.value = '00';
 }
 
 function attachEvents() {
@@ -106,8 +184,11 @@ function attachEvents() {
     });
     el.generateBtn.addEventListener('click', generateSchedule);
     el.clearScheduleBtn.addEventListener('click', clearDailySchedule);
-    el.googleImportBtn.addEventListener('click', importFromGoogleCalendar);
     el.suggestBtn.addEventListener('click', getSuggestion);
+
+    // 匯入彈窗
+    el.confirmImport.addEventListener('click', handleConfirmImport);
+    el.skipImport.addEventListener('click', handleSkipImport);
     el.scheduleDate.addEventListener('change', (e) => {
         loadSchedule(e.target.value);
         // 如果當前在日待辦分頁，也要重新載入日待辦
@@ -122,12 +203,23 @@ function attachEvents() {
     el.saveSchedule.addEventListener('click', saveScheduleEdit);
     el.cancelSchedule.addEventListener('click', closeScheduleEditModal);
 
+    // 固定排程
+    el.addRoutineBtn.addEventListener('click', openAddRoutineModal);
+    el.routineInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') openAddRoutineModal();
+    });
+    el.saveRoutine.addEventListener('click', saveRoutineEdit);
+    el.cancelRoutine.addEventListener('click', closeRoutineEditModal);
+
     // 點擊外部關閉模態框
     el.editModal.addEventListener('click', (e) => {
         if (e.target === el.editModal) closeEditModal();
     });
     el.scheduleEditModal.addEventListener('click', (e) => {
         if (e.target === el.scheduleEditModal) closeScheduleEditModal();
+    });
+    el.routineEditModal.addEventListener('click', (e) => {
+        if (e.target === el.routineEditModal) closeRoutineEditModal();
     });
 
     // 點擊外部關閉所有選單
@@ -505,6 +597,9 @@ function closeEditModal() {
 
 async function loadSchedule(date) {
     try {
+        // 先自動套用固定排程（如果還沒有的話）
+        await applyRoutinesToDate(date);
+
         const response = await fetch(`/api/schedule/${date}`);
         const schedule = await response.json();
         renderSchedule(schedule);
@@ -528,7 +623,8 @@ function renderSchedule(schedule) {
                 <input type="checkbox" class="schedule-checkbox" ${item.completed ? 'checked' : ''}
                        onchange="toggleScheduleComplete(${item.id})" />
                 <div class="schedule-time">${item.start_time}~${item.end_time}</div>
-                <div class="schedule-title" ondblclick="editSchedule(${item.id}, '${escapeHtml(item.title)}', '${item.start_time}', '${item.end_time}')">${escapeHtml(item.title)}</div>
+                <div class="schedule-title">${escapeHtml(item.title)}</div>
+                <button class="schedule-edit-btn" onclick="editSchedule(${item.id}, '${escapeHtml(item.title)}', '${item.start_time}', '${item.end_time}')" title="編輯">✏️</button>
                 <div class="schedule-actions">
                     <button class="schedule-menu-btn" onclick="toggleScheduleMenu(${item.id})">⋮</button>
                     <div class="schedule-menu" id="menu-${item.id}" style="display: none;">
@@ -617,10 +713,17 @@ async function addScheduleManually() {
     state.currentEditId = null; // 新增模式
     state.currentEditType = 'schedule';
     el.scheduleTitle.value = title;
-    el.scheduleStart.value = '';
-    el.scheduleEnd.value = '';
+
+    // 設定預設時間為當前時間的下一個整點
+    const now = new Date();
+    const currentHour = now.getHours();
+    el.scheduleStartHour.value = currentHour.toString().padStart(2, '0');
+    el.scheduleStartMin.value = '00';
+    el.scheduleEndHour.value = ((currentHour + 1) % 24).toString().padStart(2, '0');
+    el.scheduleEndMin.value = '00';
+
     el.scheduleEditModal.classList.add('show');
-    el.scheduleStart.focus();
+    el.scheduleStartHour.focus();
 
     // 清空輸入框
     el.scheduleInput.value = '';
@@ -694,19 +797,40 @@ function editSchedule(id, title, startTime, endTime) {
     state.currentEditId = id;
     state.currentEditType = 'schedule';
     el.scheduleTitle.value = title;
-    el.scheduleStart.value = startTime;
-    el.scheduleEnd.value = endTime;
+
+    // 解析時間並設定到選擇器
+    const [startHour, startMin] = startTime.split(':');
+    const [endHour, endMin] = endTime.split(':');
+
+    el.scheduleStartHour.value = startHour;
+    el.scheduleStartMin.value = getNearestFiveMin(startMin);
+    el.scheduleEndHour.value = endHour;
+    el.scheduleEndMin.value = getNearestFiveMin(endMin);
+
     el.scheduleEditModal.classList.add('show');
     el.scheduleTitle.focus();
 }
 
+// 取得最接近的 5 分鐘值
+function getNearestFiveMin(min) {
+    const m = parseInt(min);
+    const rounded = Math.round(m / 5) * 5;
+    return (rounded % 60).toString().padStart(2, '0');
+}
+
 async function saveScheduleEdit() {
     const title = el.scheduleTitle.value.trim();
-    const startTime = el.scheduleStart.value;
-    const endTime = el.scheduleEnd.value;
+    const startTime = `${el.scheduleStartHour.value}:${el.scheduleStartMin.value}`;
+    const endTime = `${el.scheduleEndHour.value}:${el.scheduleEndMin.value}`;
 
-    if (!title || !startTime || !endTime) {
-        alert('請填寫完整的標題和時間');
+    if (!title) {
+        alert('請填寫標題');
+        return;
+    }
+
+    // 驗證時間順序
+    if (startTime >= endTime) {
+        alert('結束時間必須晚於開始時間');
         return;
     }
 
@@ -745,8 +869,15 @@ async function saveScheduleEdit() {
 function closeScheduleEditModal() {
     el.scheduleEditModal.classList.remove('show');
     el.scheduleTitle.value = '';
-    el.scheduleStart.value = '';
-    el.scheduleEnd.value = '';
+
+    // 重設時間選擇器為當前時間的下一個整點
+    const now = new Date();
+    const currentHour = now.getHours();
+    el.scheduleStartHour.value = currentHour.toString().padStart(2, '0');
+    el.scheduleStartMin.value = '00';
+    el.scheduleEndHour.value = ((currentHour + 1) % 24).toString().padStart(2, '0');
+    el.scheduleEndMin.value = '00';
+
     state.currentEditId = null;
     state.currentEditType = null;
 }
@@ -1110,3 +1241,232 @@ async function importFromGoogleCalendar() {
 
 // 頁面載入時檢查一次 - 已停用
 // setTimeout(checkDelays, 5000);
+
+// ===== Google Calendar 匯入彈窗 =====
+
+function checkAndShowImportModal() {
+    // 檢查是否已經選擇過（使用 sessionStorage，關閉瀏覽器後會清除）
+    const importChoice = sessionStorage.getItem('gcal_import_choice');
+
+    if (importChoice === 'skip' || importChoice === 'done') {
+        // 用戶已選擇略過或已匯入過，不再顯示
+        return;
+    }
+
+    // 延遲一點點顯示，讓頁面先載入完成
+    setTimeout(() => {
+        el.importModal.classList.add('show');
+    }, 500);
+}
+
+function handleConfirmImport() {
+    const remember = el.rememberChoice.checked;
+
+    // 關閉彈窗
+    el.importModal.classList.remove('show');
+
+    // 執行匯入
+    importFromGoogleCalendar();
+
+    // 如果勾選記住選擇
+    if (remember) {
+        sessionStorage.setItem('gcal_import_choice', 'done');
+    }
+}
+
+function handleSkipImport() {
+    const remember = el.rememberChoice.checked;
+
+    // 關閉彈窗
+    el.importModal.classList.remove('show');
+
+    // 如果勾選記住選擇
+    if (remember) {
+        sessionStorage.setItem('gcal_import_choice', 'skip');
+    }
+}
+
+// ===== 每日固定排程 =====
+
+async function loadRoutines() {
+    try {
+        const response = await fetch('/api/routines');
+        const routines = await response.json();
+        renderRoutines(routines);
+    } catch (error) {
+        console.error('載入固定排程失敗:', error);
+    }
+}
+
+function renderRoutines(routines) {
+    // 更新計數
+    const enabledCount = routines.filter(r => r.enabled).length;
+    el.routineCount.textContent = enabledCount;
+
+    if (routines.length === 0) {
+        el.routineItems.innerHTML = '<div class="routine-empty">尚無固定排程，新增後每天會自動加入</div>';
+        return;
+    }
+
+    el.routineItems.innerHTML = routines.map(routine => {
+        const disabledClass = routine.enabled ? '' : 'disabled';
+        return `
+            <div class="routine-item ${disabledClass}" data-id="${routine.id}">
+                <input type="checkbox" class="routine-toggle" ${routine.enabled ? 'checked' : ''}
+                       onchange="toggleRoutineEnabled(${routine.id})" title="啟用/停用" />
+                <div class="routine-time">${routine.start_time}~${routine.end_time}</div>
+                <div class="routine-title">${escapeHtml(routine.title)}</div>
+                <div class="routine-actions">
+                    <button onclick="editRoutine(${routine.id}, '${escapeHtml(routine.title)}', '${routine.start_time}', '${routine.end_time}')" title="編輯">✏️</button>
+                    <button class="danger" onclick="deleteRoutine(${routine.id})" title="刪除">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleRoutines() {
+    const list = el.routinesList;
+    const toggle = el.routineToggle;
+
+    if (list.classList.contains('collapsed')) {
+        list.classList.remove('collapsed');
+        toggle.textContent = '▼';
+    } else {
+        list.classList.add('collapsed');
+        toggle.textContent = '◀';
+    }
+}
+
+function openAddRoutineModal() {
+    const title = el.routineInput.value.trim();
+
+    state.currentRoutineId = null; // 新增模式
+    el.routineTitle.value = title;
+
+    // 設定預設時間
+    el.routineStartHour.value = '09';
+    el.routineStartMin.value = '00';
+    el.routineEndHour.value = '10';
+    el.routineEndMin.value = '00';
+
+    el.routineEditModal.classList.add('show');
+    if (title) {
+        el.routineStartHour.focus();
+    } else {
+        el.routineTitle.focus();
+    }
+
+    el.routineInput.value = '';
+}
+
+function editRoutine(id, title, startTime, endTime) {
+    state.currentRoutineId = id;
+    el.routineTitle.value = title;
+
+    const [startHour, startMin] = startTime.split(':');
+    const [endHour, endMin] = endTime.split(':');
+
+    el.routineStartHour.value = startHour;
+    el.routineStartMin.value = getNearestFiveMin(startMin);
+    el.routineEndHour.value = endHour;
+    el.routineEndMin.value = getNearestFiveMin(endMin);
+
+    el.routineEditModal.classList.add('show');
+    el.routineTitle.focus();
+}
+
+async function saveRoutineEdit() {
+    const title = el.routineTitle.value.trim();
+    const startTime = `${el.routineStartHour.value}:${el.routineStartMin.value}`;
+    const endTime = `${el.routineEndHour.value}:${el.routineEndMin.value}`;
+
+    if (!title) {
+        alert('請填寫標題');
+        return;
+    }
+
+    if (startTime >= endTime) {
+        alert('結束時間必須晚於開始時間');
+        return;
+    }
+
+    try {
+        let response;
+        if (state.currentRoutineId === null) {
+            // 新增
+            response = await fetch('/api/routines', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    start_time: startTime,
+                    end_time: endTime
+                })
+            });
+        } else {
+            // 更新
+            response = await fetch(`/api/routines/${state.currentRoutineId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    start_time: startTime,
+                    end_time: endTime
+                })
+            });
+        }
+
+        if (response.ok) {
+            closeRoutineEditModal();
+            await loadRoutines();
+        }
+    } catch (error) {
+        console.error('儲存固定排程失敗:', error);
+    }
+}
+
+function closeRoutineEditModal() {
+    el.routineEditModal.classList.remove('show');
+    el.routineTitle.value = '';
+    el.routineStartHour.value = '09';
+    el.routineStartMin.value = '00';
+    el.routineEndHour.value = '10';
+    el.routineEndMin.value = '00';
+    state.currentRoutineId = null;
+}
+
+async function toggleRoutineEnabled(id) {
+    try {
+        await fetch(`/api/routines/${id}/toggle`, { method: 'POST' });
+        await loadRoutines();
+    } catch (error) {
+        console.error('切換固定排程狀態失敗:', error);
+    }
+}
+
+async function deleteRoutine(id) {
+    if (!confirm('確定要刪除這個固定排程嗎？')) return;
+
+    try {
+        await fetch(`/api/routines/${id}`, { method: 'DELETE' });
+        await loadRoutines();
+    } catch (error) {
+        console.error('刪除固定排程失敗:', error);
+    }
+}
+
+async function applyRoutinesToDate(date) {
+    try {
+        const response = await fetch('/api/routines/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date })
+        });
+        const data = await response.json();
+        return data.added;
+    } catch (error) {
+        console.error('套用固定排程失敗:', error);
+        return 0;
+    }
+}
