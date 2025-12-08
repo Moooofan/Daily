@@ -5,26 +5,47 @@ from database_simple import SimpleDatabase
 from ai_helper import AIHelper
 from google_calendar_helper import GoogleCalendarHelper
 from config import Config
+import os
 
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
 
-# 初始化
+# 初始化資料庫
 db = SimpleDatabase()
-gcal = GoogleCalendarHelper()
+
+# Google Calendar Helper 延遲初始化
+_gcal = None
+
+def get_gcal():
+    global _gcal
+    if _gcal is None:
+        _gcal = GoogleCalendarHelper()
+    return _gcal
 
 # AI Helper 延遲初始化（避免啟動時缺少 API Key 導致錯誤）
-ai = None
+_ai = None
 
 def get_ai():
-    global ai
-    if ai is None:
+    global _ai
+    if _ai is None:
         try:
-            ai = AIHelper()
+            _ai = AIHelper()
         except Exception as e:
             print(f"⚠️ AI Helper 初始化失敗: {e}")
             return None
-    return ai
+    return _ai
+
+
+# ===== 健康檢查端點 =====
+
+@app.route('/health')
+def health_check():
+    """健康檢查端點 - 供 Zeabur/其他平台使用"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'version': '1.0.0'
+    })
 
 
 @app.route('/')
@@ -412,10 +433,24 @@ def apply_reschedule():
 
 # ===== Google Calendar API =====
 
+@app.route('/api/google/config-status')
+def google_config_status():
+    """檢查 Google Calendar API 是否已設定"""
+    gcal = get_gcal()
+    return jsonify({
+        'configured': gcal.is_configured(),
+        'logged_in': 'google_credentials' in session
+    })
+
+
 @app.route('/google/authorize')
 def google_authorize():
     """開始 Google OAuth 授權流程"""
     try:
+        gcal = get_gcal()
+        if not gcal.is_configured():
+            return render_template('login.html', error='Google Calendar API 尚未設定，請聯繫管理員')
+
         authorization_url, state = gcal.get_authorization_url()
         session['google_auth_state'] = state
         return redirect(authorization_url)
@@ -451,10 +486,10 @@ def oauth2callback():
             }), 400
 
         # 用授權碼交換憑證
-        credentials = gcal.exchange_code_for_credentials(code)
+        credentials = get_gcal().exchange_code_for_credentials(code)
 
         # 將憑證儲存到 session
-        credentials_dict = gcal.credentials_to_dict(credentials)
+        credentials_dict = get_gcal().credentials_to_dict(credentials)
         session['google_credentials'] = credentials_dict
 
         # 自動匯入未來 30 天的 Google Calendar 事件
@@ -466,7 +501,7 @@ def oauth2callback():
             print(f"📅 開始自動匯入 Google Calendar 事件 ({start_date} 到 {end_date})")
 
             # 取得未來 30 天的事件
-            events = gcal.get_calendar_events_range(credentials_dict, start_date, end_date)
+            events = get_gcal().get_calendar_events_range(credentials_dict, start_date, end_date)
 
             # 匯入到資料庫
             imported_count = 0
@@ -521,7 +556,7 @@ def get_google_events():
         date_str = request.args.get('date', date.today().isoformat())
 
         # 取得事件
-        events = gcal.get_calendar_events(session['google_credentials'], date_str)
+        events = get_gcal().get_calendar_events(session['google_credentials'], date_str)
 
         return jsonify({
             'success': True,
@@ -555,7 +590,7 @@ def import_google_events():
         date_str = data.get('date', date.today().isoformat())
 
         # 取得 Google Calendar 事件
-        events = gcal.get_calendar_events(session['google_credentials'], date_str)
+        events = get_gcal().get_calendar_events(session['google_credentials'], date_str)
 
         # 匯入到資料庫
         imported_count = 0

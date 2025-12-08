@@ -4,19 +4,22 @@ import json
 from datetime import datetime, date
 from typing import List, Dict, Optional
 import os
+from config import Config
 
 
 class SimpleDatabase:
     """簡化版資料庫"""
 
-    def __init__(self, db_path: str = 'data/daily.db'):
-        self.db_path = db_path
+    def __init__(self, db_path: str = None):
+        self.db_path = db_path or Config.DATABASE_PATH
         self._ensure_data_dir()
         self._init_db()
 
     def _ensure_data_dir(self):
         """確保資料目錄存在"""
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        dir_path = os.path.dirname(self.db_path)
+        if dir_path:  # 只有當路徑包含目錄時才建立
+            os.makedirs(dir_path, exist_ok=True)
 
     def _get_connection(self):
         """取得資料庫連線"""

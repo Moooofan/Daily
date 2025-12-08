@@ -10,7 +10,7 @@ class Config:
 
     # Flask 設定
     SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
-    DEBUG = os.getenv('FLASK_DEBUG', 'True') == 'True'
+    DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
     # OpenAI API
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -24,8 +24,11 @@ class Config:
     GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/oauth2callback')
     GOOGLE_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
-    # 資料庫
-    DATABASE_PATH = 'data/daily.db'
+    # 資料庫 - 支援環境變數設定路徑
+    DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/daily.db')
+
+    # 環境判斷
+    IS_PRODUCTION = os.getenv('ENVIRONMENT', 'development') == 'production'
 
     # 預設時間設定
     DEFAULT_WAKE_TIME = '07:00'

@@ -14,15 +14,25 @@ class GoogleCalendarHelper:
 
     def __init__(self):
         """初始化 Google Calendar Helper"""
-        self.client_config = {
-            "web": {
-                "client_id": Config.GOOGLE_CLIENT_ID,
-                "client_secret": Config.GOOGLE_CLIENT_SECRET,
-                "redirect_uris": [Config.GOOGLE_REDIRECT_URI],
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token"
+        self._config_valid = bool(Config.GOOGLE_CLIENT_ID and Config.GOOGLE_CLIENT_SECRET)
+
+        if self._config_valid:
+            self.client_config = {
+                "web": {
+                    "client_id": Config.GOOGLE_CLIENT_ID,
+                    "client_secret": Config.GOOGLE_CLIENT_SECRET,
+                    "redirect_uris": [Config.GOOGLE_REDIRECT_URI],
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token"
+                }
             }
-        }
+        else:
+            self.client_config = None
+            print("⚠️ Google Calendar API 未設定（缺少 GOOGLE_CLIENT_ID 或 GOOGLE_CLIENT_SECRET）")
+
+    def is_configured(self) -> bool:
+        """檢查 Google Calendar 是否已正確設定"""
+        return self._config_valid
 
     def get_authorization_url(self, state: str = None):
         """取得 Google OAuth 授權 URL
@@ -33,7 +43,13 @@ class GoogleCalendarHelper:
         Returns:
             authorization_url: 授權 URL
             state: 狀態參數
+
+        Raises:
+            ValueError: 如果 Google Calendar API 未設定
         """
+        if not self._config_valid:
+            raise ValueError("Google Calendar API 未設定，請設定 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET 環境變數")
+
         flow = Flow.from_client_config(
             self.client_config,
             scopes=self.SCOPES,
@@ -56,7 +72,13 @@ class GoogleCalendarHelper:
 
         Returns:
             credentials: Google OAuth2 憑證物件
+
+        Raises:
+            ValueError: 如果 Google Calendar API 未設定
         """
+        if not self._config_valid:
+            raise ValueError("Google Calendar API 未設定")
+
         flow = Flow.from_client_config(
             self.client_config,
             scopes=self.SCOPES,
