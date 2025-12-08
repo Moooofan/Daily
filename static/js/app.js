@@ -1,416 +1,1182 @@
+// 極簡版前端邏輯 + 語音輸入
+
 // 全域狀態
 const state = {
-    tasks: [],
-    schedule: [],
-    preferences: {},
-    googleConnected: false
+    currentEditId: null,
+    currentEditType: null, // 'todo' or 'schedule'
+    currentTodoType: 'daily', // 'daily', 'weekly', 'monthly'
+    recognition: null,
+    currentRoutineId: null // 固定排程編輯用
 };
 
 // DOM 元素
-const elements = {
-    // Google Calendar
-    statusIcon: document.getElementById('statusIcon'),
-    statusText: document.getElementById('statusText'),
-    googleAuthBtn: document.getElementById('googleAuthBtn'),
-    googleDisconnectBtn: document.getElementById('googleDisconnectBtn'),
+const el = {
+    // 智能輸入
+    smartInput: document.getElementById('smartInput'),
+    processBtn: document.getElementById('processBtn'),
+    voiceBtn: document.getElementById('voiceBtn'),
+    voiceIcon: document.getElementById('voiceIcon'),
+    voiceStatus: document.getElementById('voiceStatus'),
 
-    // 任務
-    tasksList: document.getElementById('tasksList'),
-    addTaskBtn: document.getElementById('addTaskBtn'),
-    taskModal: document.getElementById('taskModal'),
-    taskForm: document.getElementById('taskForm'),
-    cancelTaskBtn: document.getElementById('cancelTaskBtn'),
+    // 待辦
+    todoInput: document.getElementById('todoInput'),
+    addTodoBtn: document.getElementById('addTodoBtn'),
+    todoList: document.getElementById('todoList'),
 
     // 排程
     scheduleDate: document.getElementById('scheduleDate'),
-    generateScheduleBtn: document.getElementById('generateScheduleBtn'),
-    scheduleView: document.getElementById('scheduleView'),
+    scheduleInput: document.getElementById('scheduleInput'),
+    addScheduleBtn: document.getElementById('addScheduleBtn'),
+    suggestBtn: document.getElementById('suggestBtn'),
+    generateBtn: document.getElementById('generateBtn'),
+    clearScheduleBtn: document.getElementById('clearScheduleBtn'),
+    suggestion: document.getElementById('suggestion'),
+    scheduleList: document.getElementById('scheduleList'),
 
-    // 設定
-    settingsToggle: document.getElementById('settingsToggle'),
-    settingsPanel: document.getElementById('settingsPanel'),
-    saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+    // 匯入彈窗
+    importModal: document.getElementById('importModal'),
+    confirmImport: document.getElementById('confirmImport'),
+    skipImport: document.getElementById('skipImport'),
+    rememberChoice: document.getElementById('rememberChoice'),
 
-    // Loading
-    loadingOverlay: document.getElementById('loadingOverlay')
+    // 碎片任務
+    quickTasksList: document.getElementById('quickTasksList'),
+    quickTaskCount: document.getElementById('quickTaskCount'),
+    quickTaskToggle: document.getElementById('quickTaskToggle'),
+
+    // 固定排程
+    routinesList: document.getElementById('routinesList'),
+    routineItems: document.getElementById('routineItems'),
+    routineCount: document.getElementById('routineCount'),
+    routineToggle: document.getElementById('routineToggle'),
+    routineInput: document.getElementById('routineInput'),
+    addRoutineBtn: document.getElementById('addRoutineBtn'),
+
+    // 固定排程編輯彈窗
+    routineEditModal: document.getElementById('routineEditModal'),
+    routineTitle: document.getElementById('routineTitle'),
+    routineStartHour: document.getElementById('routineStartHour'),
+    routineStartMin: document.getElementById('routineStartMin'),
+    routineEndHour: document.getElementById('routineEndHour'),
+    routineEndMin: document.getElementById('routineEndMin'),
+    saveRoutine: document.getElementById('saveRoutine'),
+    cancelRoutine: document.getElementById('cancelRoutine'),
+
+    // 模態框
+    editModal: document.getElementById('editModal'),
+    editInput: document.getElementById('editInput'),
+    saveEdit: document.getElementById('saveEdit'),
+    cancelEdit: document.getElementById('cancelEdit'),
+
+    scheduleEditModal: document.getElementById('scheduleEditModal'),
+    scheduleTitle: document.getElementById('scheduleTitle'),
+    scheduleStartHour: document.getElementById('scheduleStartHour'),
+    scheduleStartMin: document.getElementById('scheduleStartMin'),
+    scheduleEndHour: document.getElementById('scheduleEndHour'),
+    scheduleEndMin: document.getElementById('scheduleEndMin'),
+    saveSchedule: document.getElementById('saveSchedule'),
+    cancelSchedule: document.getElementById('cancelSchedule'),
+
+    loading: document.getElementById('loading')
 };
 
 // ===== 初始化 =====
 
 document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
-    attachEventListeners();
+    init();
+    attachEvents();
 });
 
-async function initializeApp() {
+function init() {
     // 設定今日日期
     const today = new Date().toISOString().split('T')[0];
-    elements.scheduleDate.value = today;
+    el.scheduleDate.value = today;
+
+    // 初始化時間選擇器
+    initTimeSelects();
+
+    // 初始化語音辨識
+    initSpeechRecognition();
 
     // 載入資料
-    await Promise.all([
-        checkGoogleStatus(),
-        loadTasks(),
-        loadPreferences(),
-        loadSchedule(today)
-    ]);
+    loadTodos();
+    loadSchedule(today);
+    loadQuickTasks();
+    loadRoutines();
 
-    // 檢查 URL 參數（OAuth 回調）
-    const urlParams = new URLSearchParams(window.location.search);
-    const authStatus = urlParams.get('auth');
-    if (authStatus === 'success') {
-        showNotification('Google Calendar 連接成功！', 'success');
-        checkGoogleStatus();
-    } else if (authStatus === 'failed') {
-        showNotification('Google Calendar 連接失敗', 'error');
-    }
+    // 檢查是否需要顯示匯入彈窗
+    checkAndShowImportModal();
 }
 
-function attachEventListeners() {
-    // Google Calendar
-    elements.googleAuthBtn.addEventListener('click', connectGoogle);
-    elements.googleDisconnectBtn.addEventListener('click', disconnectGoogle);
+// 初始化時間選擇器
+function initTimeSelects() {
+    // 填充小時選項 (00-23)
+    const hourSelects = [
+        el.scheduleStartHour, el.scheduleEndHour,
+        el.routineStartHour, el.routineEndHour
+    ];
+    hourSelects.forEach(select => {
+        for (let h = 0; h < 24; h++) {
+            const option = document.createElement('option');
+            option.value = h.toString().padStart(2, '0');
+            option.textContent = h.toString().padStart(2, '0');
+            select.appendChild(option);
+        }
+    });
 
-    // 任務
-    elements.addTaskBtn.addEventListener('click', () => openTaskModal());
-    elements.taskForm.addEventListener('submit', handleTaskSubmit);
-    elements.cancelTaskBtn.addEventListener('click', closeTaskModal);
-    document.querySelector('.close').addEventListener('click', closeTaskModal);
+    // 填充分鐘選項 (00, 05, 10, ... 55)
+    const minSelects = [
+        el.scheduleStartMin, el.scheduleEndMin,
+        el.routineStartMin, el.routineEndMin
+    ];
+    minSelects.forEach(select => {
+        for (let m = 0; m < 60; m += 5) {
+            const option = document.createElement('option');
+            option.value = m.toString().padStart(2, '0');
+            option.textContent = m.toString().padStart(2, '0');
+            select.appendChild(option);
+        }
+    });
+
+    // 設定預設值（當前時間的下一個整點）
+    const now = new Date();
+    const currentHour = now.getHours();
+    el.scheduleStartHour.value = currentHour.toString().padStart(2, '0');
+    el.scheduleStartMin.value = '00';
+    el.scheduleEndHour.value = ((currentHour + 1) % 24).toString().padStart(2, '0');
+    el.scheduleEndMin.value = '00';
+
+    // 固定排程預設值
+    el.routineStartHour.value = '09';
+    el.routineStartMin.value = '00';
+    el.routineEndHour.value = '10';
+    el.routineEndMin.value = '00';
+}
+
+function attachEvents() {
+    // 智能輸入
+    el.processBtn.addEventListener('click', processSmartInput);
+    el.voiceBtn.addEventListener('click', toggleVoiceRecognition);
+
+    // 待辦分頁切換
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // 移除所有 active
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            // 添加 active 到當前
+            e.target.classList.add('active');
+            // 更新狀態並重新載入
+            state.currentTodoType = e.target.dataset.type;
+            loadTodos();
+        });
+    });
+
+    // 待辦
+    el.addTodoBtn.addEventListener('click', addTodo);
+    el.todoInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTodo();
+    });
 
     // 排程
-    elements.generateScheduleBtn.addEventListener('click', generateSchedule);
-    elements.scheduleDate.addEventListener('change', (e) => {
+    el.addScheduleBtn.addEventListener('click', addScheduleManually);
+    el.scheduleInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addScheduleManually();
+    });
+    el.generateBtn.addEventListener('click', generateSchedule);
+    el.clearScheduleBtn.addEventListener('click', clearDailySchedule);
+    el.suggestBtn.addEventListener('click', getSuggestion);
+
+    // 匯入彈窗
+    el.confirmImport.addEventListener('click', handleConfirmImport);
+    el.skipImport.addEventListener('click', handleSkipImport);
+    el.scheduleDate.addEventListener('change', (e) => {
         loadSchedule(e.target.value);
+        // 如果當前在日待辦分頁，也要重新載入日待辦
+        if (state.currentTodoType === 'daily') {
+            loadTodos();
+        }
     });
 
-    // 設定
-    elements.settingsToggle.addEventListener('click', toggleSettings);
-    elements.saveSettingsBtn.addEventListener('click', savePreferences);
+    // 模態框
+    el.saveEdit.addEventListener('click', saveEdit);
+    el.cancelEdit.addEventListener('click', closeEditModal);
+    el.saveSchedule.addEventListener('click', saveScheduleEdit);
+    el.cancelSchedule.addEventListener('click', closeScheduleEditModal);
 
-    // Modal 外部點擊關閉
-    window.addEventListener('click', (e) => {
-        if (e.target === elements.taskModal) {
-            closeTaskModal();
+    // 固定排程
+    el.addRoutineBtn.addEventListener('click', openAddRoutineModal);
+    el.routineInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') openAddRoutineModal();
+    });
+    el.saveRoutine.addEventListener('click', saveRoutineEdit);
+    el.cancelRoutine.addEventListener('click', closeRoutineEditModal);
+
+    // 點擊外部關閉模態框
+    el.editModal.addEventListener('click', (e) => {
+        if (e.target === el.editModal) closeEditModal();
+    });
+    el.scheduleEditModal.addEventListener('click', (e) => {
+        if (e.target === el.scheduleEditModal) closeScheduleEditModal();
+    });
+    el.routineEditModal.addEventListener('click', (e) => {
+        if (e.target === el.routineEditModal) closeRoutineEditModal();
+    });
+
+    // 點擊外部關閉所有選單
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.schedule-actions')) {
+            const allMenus = document.querySelectorAll('.schedule-menu');
+            allMenus.forEach(menu => {
+                menu.style.display = 'none';
+            });
         }
     });
 }
 
-// ===== Google Calendar =====
+// ===== 智能輸入處理 =====
 
-async function checkGoogleStatus() {
-    try {
-        const response = await fetch('/api/google/status');
-        const data = await response.json();
-
-        state.googleConnected = data.connected;
-
-        if (data.connected) {
-            elements.statusIcon.textContent = '🟢';
-            elements.statusText.textContent = 'Google Calendar 已連接';
-            elements.googleAuthBtn.style.display = 'none';
-            elements.googleDisconnectBtn.style.display = 'inline-block';
-        } else {
-            elements.statusIcon.textContent = '⚪';
-            elements.statusText.textContent = 'Google Calendar 未連接';
-            elements.googleAuthBtn.style.display = 'inline-block';
-            elements.googleDisconnectBtn.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('檢查 Google 狀態失敗:', error);
+async function processSmartInput() {
+    const text = el.smartInput.value.trim();
+    if (!text) {
+        el.voiceStatus.textContent = '請輸入內容';
+        return;
     }
-}
 
-async function connectGoogle() {
+    el.voiceStatus.textContent = '處理中...';
+    showLoading();
+
     try {
-        const response = await fetch('/api/google/auth-url');
+        const response = await fetch('/api/ai/process-voice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+
         const data = await response.json();
 
         if (data.success) {
-            window.location.href = data.auth_url;
+            el.voiceStatus.textContent = `已新增 ${data.todos_added} 項待辦，${data.schedules_added} 項排程`;
+            el.smartInput.value = '';
+
+            // 重新載入資料
+            await loadTodos();
+            await loadSchedule(el.scheduleDate.value);
+
+            setTimeout(() => {
+                el.voiceStatus.textContent = '';
+            }, 3000);
+        } else {
+            el.voiceStatus.textContent = `處理失敗: ${data.error || '未知錯誤'}`;
+            console.error('API 錯誤:', data);
         }
     } catch (error) {
-        showNotification('連接 Google Calendar 失敗', 'error');
+        console.error('處理輸入錯誤:', error);
+        el.voiceStatus.textContent = `網路錯誤: ${error.message}`;
+    } finally {
+        hideLoading();
     }
 }
 
-async function disconnectGoogle() {
-    if (!confirm('確定要中斷與 Google Calendar 的連接嗎？')) {
+// ===== 語音辨識 =====
+
+function initSpeechRecognition() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        console.log('瀏覽器不支援語音辨識');
+        el.voiceBtn.disabled = true;
+        el.voiceBtn.style.opacity = '0.5';
+        el.voiceStatus.textContent = '瀏覽器不支援語音功能';
         return;
     }
 
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    state.recognition = new SpeechRecognition();
+
+    // 優化設定
+    state.recognition.lang = 'zh-TW';
+    state.recognition.continuous = true;  // 改為持續錄音
+    state.recognition.interimResults = true;  // 顯示即時結果
+    state.recognition.maxAlternatives = 3;  // 增加替代方案
+
+    state.recognition.onstart = () => {
+        el.voiceBtn.classList.add('recording');
+        el.voiceIcon.textContent = '🔴';
+        el.voiceStatus.textContent = '正在聆聽... 請說話';
+    };
+
+    state.recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+
+        // 顯示即時辨識結果
+        if (interimTranscript) {
+            el.voiceStatus.textContent = `聆聽中：${interimTranscript}`;
+        }
+
+        // 處理最終結果
+        if (finalTranscript) {
+            el.voiceStatus.textContent = `辨識到：${finalTranscript}`;
+            state.recognition.stop();
+            // 填入文字框
+            el.smartInput.value = (el.smartInput.value + ' ' + finalTranscript).trim();
+        }
+    };
+
+    state.recognition.onerror = (event) => {
+        console.error('語音辨識錯誤:', event.error);
+
+        let errorMsg = '辨識失敗';
+        switch(event.error) {
+            case 'no-speech':
+                errorMsg = '沒有檢測到語音，請重試';
+                break;
+            case 'audio-capture':
+                errorMsg = '無法存取麥克風';
+                break;
+            case 'not-allowed':
+                errorMsg = '麥克風權限被拒絕';
+                break;
+            case 'network':
+                errorMsg = '網路錯誤';
+                break;
+            default:
+                errorMsg = `錯誤：${event.error}`;
+        }
+
+        el.voiceStatus.textContent = errorMsg;
+        el.voiceBtn.classList.remove('recording');
+        el.voiceIcon.textContent = '🎤';
+    };
+
+    state.recognition.onend = () => {
+        el.voiceBtn.classList.remove('recording');
+        el.voiceIcon.textContent = '🎤';
+
+        // 如果沒有處理任何結果，顯示提示
+        setTimeout(() => {
+            if (el.voiceStatus.textContent.includes('聆聽中') ||
+                el.voiceStatus.textContent.includes('正在聆聽')) {
+                el.voiceStatus.textContent = '未檢測到語音，請重試';
+            }
+        }, 500);
+    };
+}
+
+function toggleVoiceRecognition() {
+    if (!state.recognition) {
+        el.voiceStatus.textContent = '語音功能未初始化';
+        return;
+    }
+
+    if (el.voiceBtn.classList.contains('recording')) {
+        // 停止錄音
+        state.recognition.stop();
+        el.voiceStatus.textContent = '已停止';
+    } else {
+        // 開始錄音
+        try {
+            state.recognition.start();
+        } catch (error) {
+            console.error('啟動語音辨識失敗:', error);
+
+            // 如果是因為已經在運行中，先停止再重新開始
+            if (error.name === 'InvalidStateError') {
+                state.recognition.stop();
+                setTimeout(() => {
+                    try {
+                        state.recognition.start();
+                    } catch (e) {
+                        el.voiceStatus.textContent = '啟動失敗，請重新整理頁面';
+                    }
+                }, 100);
+            } else {
+                el.voiceStatus.textContent = '無法啟動語音辨識';
+            }
+        }
+    }
+}
+
+async function processVoiceInput(text) {
+    showLoading();
+
     try {
-        const response = await fetch('/api/google/disconnect', {
-            method: 'POST'
+        const response = await fetch('/api/ai/process-voice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
         });
 
-        if (response.ok) {
-            showNotification('已中斷 Google Calendar 連接', 'success');
-            checkGoogleStatus();
+        const data = await response.json();
+
+        if (data.success) {
+            el.voiceStatus.textContent = `已新增 ${data.todos_added} 項待辦，${data.schedules_added} 項排程`;
+
+            // 重新載入資料
+            await loadTodos();
+            await loadSchedule(el.scheduleDate.value);
+
+            setTimeout(() => {
+                el.voiceStatus.textContent = '';
+            }, 3000);
+        } else {
+            el.voiceStatus.textContent = `處理失敗: ${data.error || '未知錯誤'}`;
+            console.error('API 錯誤:', data);
         }
     } catch (error) {
-        showNotification('中斷連接失敗', 'error');
+        console.error('處理語音輸入錯誤:', error);
+        el.voiceStatus.textContent = `網路錯誤: ${error.message}`;
+    } finally {
+        hideLoading();
     }
 }
 
-// ===== 任務管理 =====
+// ===== 待辦事項 =====
 
-async function loadTasks() {
+async function loadTodos() {
     try {
-        const response = await fetch('/api/tasks');
-        state.tasks = await response.json();
-        renderTasks();
+        let url = `/api/todos?type=${state.currentTodoType}`;
+
+        // 如果是日待辦，加上日期參數
+        if (state.currentTodoType === 'daily') {
+            const date = el.scheduleDate.value;
+            url += `&target_date=${date}`;
+        }
+
+        const response = await fetch(url);
+        const todos = await response.json();
+        renderTodos(todos);
     } catch (error) {
-        console.error('載入任務失敗:', error);
+        console.error('載入待辦失敗:', error);
     }
 }
 
-function renderTasks() {
-    if (state.tasks.length === 0) {
-        elements.tasksList.innerHTML = `
-            <div class="empty-state">
-                <p>尚未新增任務，點擊上方按鈕新增第一個任務</p>
-            </div>
-        `;
+function renderTodos(todos) {
+    if (todos.length === 0) {
+        el.todoList.innerHTML = '<div class="empty-state">尚無待辦事項</div>';
         return;
     }
 
-    elements.tasksList.innerHTML = state.tasks.map(task => {
-        const priorityClass = task.priority >= 3 ? 'priority-high' :
-                             task.priority >= 1 ? 'priority-medium' : 'priority-low';
-        const priorityText = task.priority >= 3 ? '高' :
-                            task.priority >= 1 ? '中' : '低';
+    el.todoList.innerHTML = todos.map(todo => {
+        const completedClass = todo.completed ? 'completed' : '';
+        const estimatedTime = todo.estimated_minutes || 30;
 
         return `
-            <div class="task-item">
-                <div class="task-item-header">
-                    <div class="task-title">${escapeHtml(task.title)}</div>
-                    <div class="task-actions">
-                        <button class="edit-btn" onclick="editTask(${task.id})">編輯</button>
-                        <button class="delete-btn" onclick="deleteTask(${task.id})">刪除</button>
-                    </div>
-                </div>
-                <div class="task-meta">
-                    <span class="task-badge">⏱ ${task.duration} 分鐘</span>
-                    <span class="task-badge ${priorityClass}">優先級: ${priorityText}</span>
-                    <span class="task-badge">${getCategoryName(task.category)}</span>
-                    ${task.preferred_time ? `<span class="task-badge">🕐 ${task.preferred_time}</span>` : ''}
+            <div class="todo-item ${completedClass}">
+                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''}
+                       onchange="toggleTodoComplete(${todo.id})" />
+                <div class="todo-content" onclick="editTodo(${todo.id}, '${escapeHtml(todo.content)}', ${estimatedTime})">${escapeHtml(todo.content)}</div>
+                <div class="todo-time" onclick="editTodoTime(${todo.id}, ${estimatedTime})">⏱️ ${estimatedTime}分</div>
+                <div class="todo-actions">
+                    <button onclick="deleteTodo(${todo.id})">×</button>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-function openTaskModal(task = null) {
-    elements.taskModal.style.display = 'block';
-
-    if (task) {
-        document.getElementById('taskTitle').value = task.title;
-        document.getElementById('taskDuration').value = task.duration;
-        document.getElementById('taskPriority').value = task.priority;
-        document.getElementById('taskCategory').value = task.category;
-        document.getElementById('taskPreferredTime').value = task.preferred_time || '';
-        elements.taskForm.dataset.editId = task.id;
-    } else {
-        elements.taskForm.reset();
-        delete elements.taskForm.dataset.editId;
-    }
-}
-
-function closeTaskModal() {
-    elements.taskModal.style.display = 'none';
-    elements.taskForm.reset();
-    delete elements.taskForm.dataset.editId;
-}
-
-async function handleTaskSubmit(e) {
-    e.preventDefault();
-
-    const taskData = {
-        title: document.getElementById('taskTitle').value,
-        duration: parseInt(document.getElementById('taskDuration').value),
-        priority: parseInt(document.getElementById('taskPriority').value),
-        category: document.getElementById('taskCategory').value,
-        preferred_time: document.getElementById('taskPreferredTime').value || null
-    };
-
-    const editId = elements.taskForm.dataset.editId;
-    const url = editId ? `/api/tasks/${editId}` : '/api/tasks';
-    const method = editId ? 'PUT' : 'POST';
+async function addTodo() {
+    const content = el.todoInput.value.trim();
+    if (!content) return;
 
     try {
-        const response = await fetch(url, {
-            method: method,
+        const response = await fetch('/api/todos', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(taskData)
+            body: JSON.stringify({
+                content,
+                type: state.currentTodoType
+            })
         });
 
         if (response.ok) {
-            showNotification(editId ? '任務已更新' : '任務已新增', 'success');
-            closeTaskModal();
-            await loadTasks();
+            el.todoInput.value = '';
+            await loadTodos();
         }
     } catch (error) {
-        showNotification('操作失敗', 'error');
+        console.error('新增待辦失敗:', error);
     }
 }
 
-async function editTask(taskId) {
-    const task = state.tasks.find(t => t.id === taskId);
-    if (task) {
-        openTaskModal(task);
-    }
-}
-
-async function deleteTask(taskId) {
-    if (!confirm('確定要刪除這個任務嗎？')) {
-        return;
-    }
-
+async function deleteTodo(id) {
     try {
-        const response = await fetch(`/api/tasks/${taskId}`, {
+        const response = await fetch(`/api/todos/${id}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
-            showNotification('任務已刪除', 'success');
-            await loadTasks();
+            await loadTodos();
         }
     } catch (error) {
-        showNotification('刪除失敗', 'error');
+        console.error('刪除待辦失敗:', error);
     }
 }
 
-// ===== 排程管理 =====
+function editTodo(id, content, estimatedTime) {
+    state.currentEditId = id;
+    state.currentEditType = 'todo';
+    el.editInput.value = content;
+    el.editModal.classList.add('show');
+    el.editInput.focus();
+}
 
-async function generateSchedule() {
-    const date = elements.scheduleDate.value;
-
-    elements.loadingOverlay.style.display = 'flex';
-
+async function toggleTodoComplete(id) {
     try {
-        const response = await fetch('/api/schedule/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date })
+        const response = await fetch(`/api/todos/${id}/toggle`, {
+            method: 'POST'
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-            state.schedule = data.schedule;
-            renderSchedule();
-            showNotification('行程已生成！', 'success');
-        } else {
-            showNotification('生成失敗: ' + data.error, 'error');
+        if (response.ok) {
+            await loadTodos();
         }
     } catch (error) {
-        showNotification('生成失敗', 'error');
-    } finally {
-        elements.loadingOverlay.style.display = 'none';
+        console.error('切換待辦完成狀態失敗:', error);
     }
 }
+
+async function editTodoTime(id, currentTime) {
+    const newTime = prompt(`設定預估時間（分鐘）：`, currentTime);
+    if (newTime === null || newTime === '') return;
+
+    const minutes = parseInt(newTime);
+    if (isNaN(minutes) || minutes <= 0) {
+        alert('請輸入有效的分鐘數');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/todos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estimated_minutes: minutes })
+        });
+
+        if (response.ok) {
+            await loadTodos();
+        }
+    } catch (error) {
+        console.error('更新預估時間失敗:', error);
+    }
+}
+
+async function saveEdit() {
+    const content = el.editInput.value.trim();
+    if (!content) return;
+
+    try {
+        const response = await fetch(`/api/todos/${state.currentEditId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+
+        if (response.ok) {
+            closeEditModal();
+            await loadTodos();
+        }
+    } catch (error) {
+        console.error('更新待辦失敗:', error);
+    }
+}
+
+function closeEditModal() {
+    el.editModal.classList.remove('show');
+    el.editInput.value = '';
+    state.currentEditId = null;
+    state.currentEditType = null;
+}
+
+// ===== 排程 =====
 
 async function loadSchedule(date) {
     try {
-        const response = await fetch(`/api/schedule/${date}`);
+        // 先自動套用固定排程（如果還沒有的話）
+        await applyRoutinesToDate(date);
 
-        if (response.ok) {
-            const data = await response.json();
-            state.schedule = data.schedule;
-            renderSchedule();
-        } else {
-            // 尚未生成
-            elements.scheduleView.innerHTML = `
-                <div class="empty-state">
-                    <p>尚未生成該日期的行程，點擊「生成行程」按鈕開始規劃</p>
-                </div>
-            `;
-        }
+        const response = await fetch(`/api/schedule/${date}`);
+        const schedule = await response.json();
+        renderSchedule(schedule);
     } catch (error) {
         console.error('載入排程失敗:', error);
     }
 }
 
-function renderSchedule() {
-    if (!state.schedule || state.schedule.length === 0) {
-        elements.scheduleView.innerHTML = `
-            <div class="empty-state">
-                <p>點擊「生成行程」按鈕，讓 AI 為你規劃今天的完整行程</p>
-            </div>
-        `;
+function renderSchedule(schedule) {
+    if (schedule.length === 0) {
+        el.scheduleList.innerHTML = '<div class="empty-state">點擊「生成」按鈕創建今日排程</div>';
         return;
     }
 
-    elements.scheduleView.innerHTML = state.schedule.map(item => {
-        const typeIcon = {
-            'calendar': '📅',
-            'task': '✅',
-            'routine': '🔄',
-            'break': '☕'
-        }[item.type] || '📌';
+    el.scheduleList.innerHTML = schedule.map(item => {
+        // 判斷是否完成
+        const completedClass = item.completed ? 'completed' : '';
 
         return `
-            <div class="schedule-item schedule-type-${item.type}">
-                <div class="schedule-time">
-                    ${item.start_time}<br>
-                    <small style="color: #94a3b8;">↓</small><br>
-                    ${item.end_time}
+            <div class="schedule-item ${completedClass}" data-id="${item.id}" draggable="true">
+                <input type="checkbox" class="schedule-checkbox" ${item.completed ? 'checked' : ''}
+                       onchange="toggleScheduleComplete(${item.id})" />
+                <div class="schedule-time">${item.start_time}~${item.end_time}</div>
+                <div class="schedule-title">${escapeHtml(item.title)}</div>
+                <button class="schedule-edit-btn" onclick="editSchedule(${item.id}, '${escapeHtml(item.title)}', '${item.start_time}', '${item.end_time}')" title="編輯">✏️</button>
+                <div class="schedule-actions">
+                    <button class="schedule-menu-btn" onclick="toggleScheduleMenu(${item.id})">⋮</button>
+                    <div class="schedule-menu" id="menu-${item.id}" style="display: none;">
+                        <button onclick="duplicateSchedule(${item.id})">複製</button>
+                        <button onclick="deleteSchedule(${item.id})" class="danger">刪除</button>
+                    </div>
                 </div>
-                <div class="schedule-details">
-                    <div class="schedule-title">${typeIcon} ${escapeHtml(item.title)}</div>
-                    ${item.description ? `<div class="schedule-description">${escapeHtml(item.description)}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    // 初始化拖拉功能
+    initDragAndDrop();
+}
+
+async function generateSchedule() {
+    const date = el.scheduleDate.value;
+    showLoading();
+
+    try {
+        // 取得當前時間 (HH:MM 格式)
+        const now = new Date();
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' +
+                          now.getMinutes().toString().padStart(2, '0');
+
+        const response = await fetch('/api/ai/generate-schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                date,
+                current_time: currentTime  // 傳遞當前時間
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            await loadSchedule(date);
+        } else {
+            alert('生成失敗：' + data.error);
+        }
+    } catch (error) {
+        console.error('生成排程失敗:', error);
+        alert('生成失敗');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function clearDailySchedule() {
+    const date = el.scheduleDate.value;
+
+    // 確認刪除
+    if (!confirm(`確定要清空 ${date} 的所有排程嗎？此操作無法復原。`)) {
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const response = await fetch(`/api/schedule/clear/${date}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            await loadSchedule(date);
+            alert(data.message || '排程已清空');
+        } else {
+            alert('清空失敗：' + (data.error || '未知錯誤'));
+        }
+    } catch (error) {
+        console.error('清空排程失敗:', error);
+        alert('清空失敗');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function addScheduleManually() {
+    const title = el.scheduleInput.value.trim();
+    if (!title) return;
+
+    // 打開排程編輯模態框，讓使用者設定時間
+    state.currentEditId = null; // 新增模式
+    state.currentEditType = 'schedule';
+    el.scheduleTitle.value = title;
+
+    // 設定預設時間為當前時間的下一個整點
+    const now = new Date();
+    const currentHour = now.getHours();
+    el.scheduleStartHour.value = currentHour.toString().padStart(2, '0');
+    el.scheduleStartMin.value = '00';
+    el.scheduleEndHour.value = ((currentHour + 1) % 24).toString().padStart(2, '0');
+    el.scheduleEndMin.value = '00';
+
+    el.scheduleEditModal.classList.add('show');
+    el.scheduleStartHour.focus();
+
+    // 清空輸入框
+    el.scheduleInput.value = '';
+}
+
+function toggleScheduleMenu(id) {
+    const menu = document.getElementById(`menu-${id}`);
+    const allMenus = document.querySelectorAll('.schedule-menu');
+
+    // 關閉其他選單
+    allMenus.forEach(m => {
+        if (m.id !== `menu-${id}`) {
+            m.style.display = 'none';
+        }
+    });
+
+    // 切換當前選單
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+async function duplicateSchedule(id) {
+    try {
+        // 先取得當前排程資料
+        const response = await fetch(`/api/schedule/${el.scheduleDate.value}`);
+        const schedules = await response.json();
+        const item = schedules.find(s => s.id === id);
+
+        if (!item) return;
+
+        // 創建新的排程項目
+        const addResponse = await fetch('/api/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                date: el.scheduleDate.value,
+                title: item.title + ' (副本)',
+                start_time: item.start_time,
+                end_time: item.end_time
+            })
+        });
+
+        if (addResponse.ok) {
+            await loadSchedule(el.scheduleDate.value);
+            // 關閉選單
+            toggleScheduleMenu(id);
+        }
+    } catch (error) {
+        console.error('複製排程失敗:', error);
+    }
+}
+
+async function deleteSchedule(id) {
+    if (!confirm('確定要刪除這個排程項目嗎？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/schedule/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            await loadSchedule(el.scheduleDate.value);
+        }
+    } catch (error) {
+        console.error('刪除排程失敗:', error);
+    }
+}
+
+function editSchedule(id, title, startTime, endTime) {
+    state.currentEditId = id;
+    state.currentEditType = 'schedule';
+    el.scheduleTitle.value = title;
+
+    // 解析時間並設定到選擇器
+    const [startHour, startMin] = startTime.split(':');
+    const [endHour, endMin] = endTime.split(':');
+
+    el.scheduleStartHour.value = startHour;
+    el.scheduleStartMin.value = getNearestFiveMin(startMin);
+    el.scheduleEndHour.value = endHour;
+    el.scheduleEndMin.value = getNearestFiveMin(endMin);
+
+    el.scheduleEditModal.classList.add('show');
+    el.scheduleTitle.focus();
+}
+
+// 取得最接近的 5 分鐘值
+function getNearestFiveMin(min) {
+    const m = parseInt(min);
+    const rounded = Math.round(m / 5) * 5;
+    return (rounded % 60).toString().padStart(2, '0');
+}
+
+async function saveScheduleEdit() {
+    const title = el.scheduleTitle.value.trim();
+    const startTime = `${el.scheduleStartHour.value}:${el.scheduleStartMin.value}`;
+    const endTime = `${el.scheduleEndHour.value}:${el.scheduleEndMin.value}`;
+
+    if (!title) {
+        alert('請填寫標題');
+        return;
+    }
+
+    // 驗證時間順序
+    if (startTime >= endTime) {
+        alert('結束時間必須晚於開始時間');
+        return;
+    }
+
+    try {
+        let response;
+        if (state.currentEditId === null) {
+            // 新增模式
+            response = await fetch('/api/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: el.scheduleDate.value,
+                    title,
+                    start_time: startTime,
+                    end_time: endTime
+                })
+            });
+        } else {
+            // 編輯模式
+            response = await fetch(`/api/schedule/${state.currentEditId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, start_time: startTime, end_time: endTime })
+            });
+        }
+
+        if (response.ok) {
+            closeScheduleEditModal();
+            await loadSchedule(el.scheduleDate.value);
+        }
+    } catch (error) {
+        console.error('儲存排程失敗:', error);
+    }
+}
+
+function closeScheduleEditModal() {
+    el.scheduleEditModal.classList.remove('show');
+    el.scheduleTitle.value = '';
+
+    // 重設時間選擇器為當前時間的下一個整點
+    const now = new Date();
+    const currentHour = now.getHours();
+    el.scheduleStartHour.value = currentHour.toString().padStart(2, '0');
+    el.scheduleStartMin.value = '00';
+    el.scheduleEndHour.value = ((currentHour + 1) % 24).toString().padStart(2, '0');
+    el.scheduleEndMin.value = '00';
+
+    state.currentEditId = null;
+    state.currentEditType = null;
+}
+
+// ===== AI 建議 =====
+
+async function getSuggestion() {
+    showLoading();
+    try {
+        const response = await fetch('/api/ai/suggest-now');
+        const data = await response.json();
+
+        if (data.success) {
+            el.suggestion.textContent = data.suggestion;
+            el.suggestion.style.display = 'block';
+
+            // 3秒後自動隱藏
+            setTimeout(() => {
+                el.suggestion.style.display = 'none';
+            }, 10000);
+        } else {
+            el.suggestion.textContent = '建議生成失敗';
+            el.suggestion.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('取得建議失敗:', error);
+        el.suggestion.textContent = '建議生成失敗';
+        el.suggestion.style.display = 'block';
+    } finally {
+        hideLoading();
+    }
+}
+
+// ===== 完成標記 =====
+
+async function toggleScheduleComplete(id) {
+    try {
+        const response = await fetch(`/api/schedule/${id}/toggle`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            await loadSchedule(el.scheduleDate.value);
+        }
+    } catch (error) {
+        console.error('切換完成狀態失敗:', error);
+    }
+}
+
+// ===== 拖拉排序 =====
+
+let draggedElement = null;
+
+function initDragAndDrop() {
+    const items = document.querySelectorAll('.schedule-item');
+
+    items.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+}
+
+function handleDragStart(e) {
+    draggedElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+
+    // 視覺反饋：在拖曳元素上方或下方顯示
+    const afterElement = getDragAfterElement(el.scheduleList, e.clientY);
+    if (afterElement == null) {
+        el.scheduleList.appendChild(draggedElement);
+    } else {
+        el.scheduleList.insertBefore(draggedElement, afterElement);
+    }
+
+    return false;
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+
+    // 更新排序到後端
+    updateScheduleOrder();
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.schedule-item:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+async function updateScheduleOrder() {
+    const items = document.querySelectorAll('.schedule-item');
+    const updates = Array.from(items).map((item, index) => ({
+        id: parseInt(item.dataset.id),
+        order: index
+    }));
+
+    // 批次更新排序
+    for (const update of updates) {
+        try {
+            await fetch(`/api/schedule/${update.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ display_order: update.order })
+            });
+        } catch (error) {
+            console.error('更新排序失敗:', error);
+        }
+    }
+}
+
+// ===== 延誤偵測與智能重排 =====
+
+async function checkDelays() {
+    try {
+        const response = await fetch('/api/delay/check');
+        const data = await response.json();
+
+        if (data.success && data.delayed_count > 0) {
+            // 有延誤項目，詢問是否要智能重排
+            const message = `偵測到 ${data.delayed_count} 個延誤項目，是否要 AI 幫你重新安排？`;
+            if (confirm(message)) {
+                await showRescheduleOptions(data.delayed_items);
+            }
+        }
+    } catch (error) {
+        console.error('檢查延誤失敗:', error);
+    }
+}
+
+async function showRescheduleOptions(delayedItems) {
+    showLoading();
+
+    try {
+        const response = await fetch('/api/delay/suggest-reschedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: el.scheduleDate.value })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.suggestions.length > 0) {
+            // 顯示重排建議
+            displayRescheduleSuggestions(data.suggestions);
+        }
+    } catch (error) {
+        console.error('取得重排建議失敗:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
+function displayRescheduleSuggestions(suggestions) {
+    // 創建建議顯示區
+    let html = '<div style="background: #fff3cd; padding: 15px; margin: 10px 0; border-radius: 5px;">';
+    html += '<h3 style="margin: 0 0 10px 0;">🔄 智能重排建議</h3>';
+
+    suggestions.forEach(item => {
+        html += `<div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">`;
+        html += `<strong>${item.original_title}</strong><br/>`;
+
+        item.options.forEach((option, index) => {
+            const buttonStyle = index === 0 ? 'background: #4CAF50; color: white;' :
+                              index === 1 ? 'background: #2196F3; color: white;' :
+                              'background: #f44336; color: white;';
+
+            let label = '';
+            if (option.action === 'today') label = '今晚完成';
+            else if (option.action === 'tomorrow') label = '明天完成';
+            else if (option.action === 'cancel') label = '取消';
+
+            html += `<button onclick="applyReschedule(${item.item_id}, '${option.action}', '${option.time || ''}')"
+                            style="${buttonStyle} border: none; padding: 5px 10px; margin: 5px 5px 0 0; border-radius: 3px; cursor: pointer;">
+                        ${label}: ${option.time || ''} - ${option.reason}
+                     </button>`;
+        });
+
+        html += '</div>';
+    });
+
+    html += '</div>';
+
+    // 在排程列表上方插入
+    el.scheduleList.insertAdjacentHTML('beforebegin', html);
+}
+
+async function applyReschedule(itemId, action, time) {
+    showLoading();
+
+    try {
+        const response = await fetch('/api/delay/apply-reschedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                item_id: itemId,
+                action: action,
+                time: time
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // 移除建議區
+            const suggestionBox = document.querySelector('[style*="background: #fff3cd"]');
+            if (suggestionBox) {
+                suggestionBox.remove();
+            }
+
+            // 重新載入排程
+            await loadSchedule(el.scheduleDate.value);
+        } else {
+            alert('操作失敗：' + data.error);
+        }
+    } catch (error) {
+        console.error('套用重排失敗:', error);
+        alert('操作失敗');
+    } finally {
+        hideLoading();
+    }
+}
+
+// ===== 碎片任務 =====
+
+async function loadQuickTasks() {
+    try {
+        const response = await fetch('/api/todos?type=quick');
+        const quickTasks = await response.json();
+        renderQuickTasks(quickTasks);
+    } catch (error) {
+        console.error('載入碎片任務失敗:', error);
+    }
+}
+
+function renderQuickTasks(tasks) {
+    const incompleteTasks = tasks.filter(t => !t.completed);
+
+    // 更新計數
+    el.quickTaskCount.textContent = incompleteTasks.length;
+
+    if (incompleteTasks.length === 0) {
+        el.quickTasksList.innerHTML = '<div style="padding: 15px; text-align: center; color: var(--gray);">沒有碎片任務</div>';
+        return;
+    }
+
+    el.quickTasksList.innerHTML = incompleteTasks.map(task => {
+        return `
+            <div class="quick-task-item">
+                <input type="checkbox" class="quick-task-checkbox"
+                       onchange="toggleTodoComplete(${task.id}); loadQuickTasks();" />
+                <div class="quick-task-content" onclick="editTodo(${task.id}, '${escapeHtml(task.content)}', 5)">${escapeHtml(task.content)}</div>
+                <div class="quick-task-actions">
+                    <button onclick="deleteTodo(${task.id}); loadQuickTasks();">×</button>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// ===== 偏好設定 =====
+function toggleQuickTasks() {
+    const list = el.quickTasksList;
+    const toggle = el.quickTaskToggle;
 
-async function loadPreferences() {
-    try {
-        const response = await fetch('/api/preferences');
-        state.preferences = await response.json();
-
-        document.getElementById('wakeTime').value = state.preferences.wake_time || '07:00';
-        document.getElementById('sleepTime').value = state.preferences.sleep_time || '23:00';
-        document.getElementById('breakfastTime').value = state.preferences.breakfast_time || '07:30';
-        document.getElementById('lunchTime').value = state.preferences.lunch_time || '12:00';
-        document.getElementById('dinnerTime').value = state.preferences.dinner_time || '18:30';
-        document.getElementById('bufferTime').value = state.preferences.buffer_time || 10;
-    } catch (error) {
-        console.error('載入設定失敗:', error);
-    }
-}
-
-function toggleSettings() {
-    const panel = elements.settingsPanel;
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-async function savePreferences() {
-    const preferences = {
-        wake_time: document.getElementById('wakeTime').value,
-        sleep_time: document.getElementById('sleepTime').value,
-        breakfast_time: document.getElementById('breakfastTime').value,
-        lunch_time: document.getElementById('lunchTime').value,
-        dinner_time: document.getElementById('dinnerTime').value,
-        buffer_time: parseInt(document.getElementById('bufferTime').value)
-    };
-
-    try {
-        const response = await fetch('/api/preferences', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(preferences)
-        });
-
-        if (response.ok) {
-            showNotification('設定已儲存', 'success');
-            state.preferences = preferences;
-        }
-    } catch (error) {
-        showNotification('儲存失敗', 'error');
+    if (list.classList.contains('collapsed')) {
+        list.classList.remove('collapsed');
+        toggle.classList.remove('collapsed');
+        toggle.textContent = '▼';
+    } else {
+        list.classList.add('collapsed');
+        toggle.classList.add('collapsed');
+        toggle.textContent = '◀';
     }
 }
 
@@ -422,58 +1188,285 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function getCategoryName(category) {
-    const names = {
-        'work': '工作',
-        'study': '學習',
-        'personal': '個人',
-        'health': '健康',
-        'other': '其他'
-    };
-    return names[category] || category;
+function showLoading() {
+    el.loading.classList.add('show');
 }
 
-function showNotification(message, type = 'info') {
-    // 簡易通知（可以後續改用更好的通知套件）
-    const colors = {
-        'success': '#10b981',
-        'error': '#ef4444',
-        'info': '#3b82f6'
-    };
+function hideLoading() {
+    el.loading.classList.remove('show');
+}
 
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${colors[type]};
-        color: white;
-        padding: 15px 25px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        animation: slideIn 0.3s;
-    `;
-    notification.textContent = message;
+// ===== Google Calendar 整合 =====
 
-    document.body.appendChild(notification);
+async function importFromGoogleCalendar() {
+    const date = el.scheduleDate.value;
 
+    showLoading();
+
+    try {
+        // 呼叫匯入 API
+        const response = await fetch('/api/google/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date })
+        });
+
+        const data = await response.json();
+
+        if (data.need_auth) {
+            // 需要授權，重定向到 Google 授權頁面
+            alert('需要連接 Google Calendar，將跳轉到授權頁面');
+            window.location.href = '/google/authorize';
+            return;
+        }
+
+        if (data.success) {
+            alert(`成功匯入 ${data.imported}/${data.total} 個事件`);
+            await loadSchedule(date);
+        } else {
+            alert('匯入失敗：' + data.error);
+        }
+    } catch (error) {
+        console.error('匯入 Google Calendar 失敗:', error);
+        alert('匯入失敗');
+    } finally {
+        hideLoading();
+    }
+}
+
+// ===== 自動功能 =====
+
+// 定期檢查延誤（每30分鐘）- 已停用
+// setInterval(checkDelays, 30 * 60 * 1000);
+
+// 頁面載入時檢查一次 - 已停用
+// setTimeout(checkDelays, 5000);
+
+// ===== Google Calendar 匯入彈窗 =====
+
+function checkAndShowImportModal() {
+    // 檢查是否已經選擇過（使用 sessionStorage，關閉瀏覽器後會清除）
+    const importChoice = sessionStorage.getItem('gcal_import_choice');
+
+    if (importChoice === 'skip' || importChoice === 'done') {
+        // 用戶已選擇略過或已匯入過，不再顯示
+        return;
+    }
+
+    // 延遲一點點顯示，讓頁面先載入完成
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+        el.importModal.classList.add('show');
+    }, 500);
 }
 
-// 添加動畫樣式
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(400px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+function handleConfirmImport() {
+    const remember = el.rememberChoice.checked;
+
+    // 關閉彈窗
+    el.importModal.classList.remove('show');
+
+    // 執行匯入
+    importFromGoogleCalendar();
+
+    // 如果勾選記住選擇
+    if (remember) {
+        sessionStorage.setItem('gcal_import_choice', 'done');
     }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(400px); opacity: 0; }
+}
+
+function handleSkipImport() {
+    const remember = el.rememberChoice.checked;
+
+    // 關閉彈窗
+    el.importModal.classList.remove('show');
+
+    // 如果勾選記住選擇
+    if (remember) {
+        sessionStorage.setItem('gcal_import_choice', 'skip');
     }
-`;
-document.head.appendChild(style);
+}
+
+// ===== 每日固定排程 =====
+
+async function loadRoutines() {
+    try {
+        const response = await fetch('/api/routines');
+        const routines = await response.json();
+        renderRoutines(routines);
+    } catch (error) {
+        console.error('載入固定排程失敗:', error);
+    }
+}
+
+function renderRoutines(routines) {
+    // 更新計數
+    const enabledCount = routines.filter(r => r.enabled).length;
+    el.routineCount.textContent = enabledCount;
+
+    if (routines.length === 0) {
+        el.routineItems.innerHTML = '<div class="routine-empty">尚無固定排程，新增後每天會自動加入</div>';
+        return;
+    }
+
+    el.routineItems.innerHTML = routines.map(routine => {
+        const disabledClass = routine.enabled ? '' : 'disabled';
+        return `
+            <div class="routine-item ${disabledClass}" data-id="${routine.id}">
+                <input type="checkbox" class="routine-toggle" ${routine.enabled ? 'checked' : ''}
+                       onchange="toggleRoutineEnabled(${routine.id})" title="啟用/停用" />
+                <div class="routine-time">${routine.start_time}~${routine.end_time}</div>
+                <div class="routine-title">${escapeHtml(routine.title)}</div>
+                <div class="routine-actions">
+                    <button onclick="editRoutine(${routine.id}, '${escapeHtml(routine.title)}', '${routine.start_time}', '${routine.end_time}')" title="編輯">✏️</button>
+                    <button class="danger" onclick="deleteRoutine(${routine.id})" title="刪除">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleRoutines() {
+    const list = el.routinesList;
+    const toggle = el.routineToggle;
+
+    if (list.classList.contains('collapsed')) {
+        list.classList.remove('collapsed');
+        toggle.textContent = '▼';
+    } else {
+        list.classList.add('collapsed');
+        toggle.textContent = '◀';
+    }
+}
+
+function openAddRoutineModal() {
+    const title = el.routineInput.value.trim();
+
+    state.currentRoutineId = null; // 新增模式
+    el.routineTitle.value = title;
+
+    // 設定預設時間
+    el.routineStartHour.value = '09';
+    el.routineStartMin.value = '00';
+    el.routineEndHour.value = '10';
+    el.routineEndMin.value = '00';
+
+    el.routineEditModal.classList.add('show');
+    if (title) {
+        el.routineStartHour.focus();
+    } else {
+        el.routineTitle.focus();
+    }
+
+    el.routineInput.value = '';
+}
+
+function editRoutine(id, title, startTime, endTime) {
+    state.currentRoutineId = id;
+    el.routineTitle.value = title;
+
+    const [startHour, startMin] = startTime.split(':');
+    const [endHour, endMin] = endTime.split(':');
+
+    el.routineStartHour.value = startHour;
+    el.routineStartMin.value = getNearestFiveMin(startMin);
+    el.routineEndHour.value = endHour;
+    el.routineEndMin.value = getNearestFiveMin(endMin);
+
+    el.routineEditModal.classList.add('show');
+    el.routineTitle.focus();
+}
+
+async function saveRoutineEdit() {
+    const title = el.routineTitle.value.trim();
+    const startTime = `${el.routineStartHour.value}:${el.routineStartMin.value}`;
+    const endTime = `${el.routineEndHour.value}:${el.routineEndMin.value}`;
+
+    if (!title) {
+        alert('請填寫標題');
+        return;
+    }
+
+    if (startTime >= endTime) {
+        alert('結束時間必須晚於開始時間');
+        return;
+    }
+
+    try {
+        let response;
+        if (state.currentRoutineId === null) {
+            // 新增
+            response = await fetch('/api/routines', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    start_time: startTime,
+                    end_time: endTime
+                })
+            });
+        } else {
+            // 更新
+            response = await fetch(`/api/routines/${state.currentRoutineId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    start_time: startTime,
+                    end_time: endTime
+                })
+            });
+        }
+
+        if (response.ok) {
+            closeRoutineEditModal();
+            await loadRoutines();
+        }
+    } catch (error) {
+        console.error('儲存固定排程失敗:', error);
+    }
+}
+
+function closeRoutineEditModal() {
+    el.routineEditModal.classList.remove('show');
+    el.routineTitle.value = '';
+    el.routineStartHour.value = '09';
+    el.routineStartMin.value = '00';
+    el.routineEndHour.value = '10';
+    el.routineEndMin.value = '00';
+    state.currentRoutineId = null;
+}
+
+async function toggleRoutineEnabled(id) {
+    try {
+        await fetch(`/api/routines/${id}/toggle`, { method: 'POST' });
+        await loadRoutines();
+    } catch (error) {
+        console.error('切換固定排程狀態失敗:', error);
+    }
+}
+
+async function deleteRoutine(id) {
+    if (!confirm('確定要刪除這個固定排程嗎？')) return;
+
+    try {
+        await fetch(`/api/routines/${id}`, { method: 'DELETE' });
+        await loadRoutines();
+    } catch (error) {
+        console.error('刪除固定排程失敗:', error);
+    }
+}
+
+async function applyRoutinesToDate(date) {
+    try {
+        const response = await fetch('/api/routines/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date })
+        });
+        const data = await response.json();
+        return data.added;
+    } catch (error) {
+        console.error('套用固定排程失敗:', error);
+        return 0;
+    }
+}
