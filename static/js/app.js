@@ -617,18 +617,23 @@ function renderSchedule(schedule) {
     el.scheduleList.innerHTML = schedule.map(item => {
         // 判斷是否完成
         const completedClass = item.completed ? 'completed' : '';
+        // 判斷是否來自固定排程
+        const isFromRoutine = item.routine_id !== null && item.routine_id !== undefined;
+        const routineClass = isFromRoutine ? 'from-routine' : '';
+        const routineBadge = isFromRoutine ? '<span class="routine-badge" title="來自固定排程">🔄</span>' : '';
 
         return `
-            <div class="schedule-item ${completedClass}" data-id="${item.id}" draggable="true">
+            <div class="schedule-item ${completedClass} ${routineClass}" data-id="${item.id}" data-routine-id="${item.routine_id || ''}" draggable="true">
                 <input type="checkbox" class="schedule-checkbox" ${item.completed ? 'checked' : ''}
                        onchange="toggleScheduleComplete(${item.id})" />
                 <div class="schedule-time">${item.start_time}~${item.end_time}</div>
-                <div class="schedule-title">${escapeHtml(item.title)}</div>
+                <div class="schedule-title">${routineBadge}${escapeHtml(item.title)}</div>
                 <button class="schedule-edit-btn" onclick="editSchedule(${item.id}, '${escapeHtml(item.title)}', '${item.start_time}', '${item.end_time}')" title="編輯">✏️</button>
                 <div class="schedule-actions">
                     <button class="schedule-menu-btn" onclick="toggleScheduleMenu(${item.id})">⋮</button>
                     <div class="schedule-menu" id="menu-${item.id}" style="display: none;">
                         <button onclick="duplicateSchedule(${item.id})">複製</button>
+                        ${isFromRoutine ? `<button onclick="excludeRoutineForToday(${item.routine_id})" class="warning">本日排除</button>` : ''}
                         <button onclick="deleteSchedule(${item.id})" class="danger">刪除</button>
                     </div>
                 </div>
@@ -1290,15 +1295,22 @@ function handleSkipImport() {
 
 async function loadRoutines() {
     try {
-        const response = await fetch('/api/routines');
-        const routines = await response.json();
-        renderRoutines(routines);
+        const date = el.scheduleDate.value;
+        // 同時載入固定排程和當日例外
+        const [routinesRes, exceptionsRes] = await Promise.all([
+            fetch('/api/routines'),
+            fetch(`/api/routines/exceptions/${date}`)
+        ]);
+        const routines = await routinesRes.json();
+        const exceptionsData = await exceptionsRes.json();
+        const exceptions = exceptionsData.exceptions || [];
+        renderRoutines(routines, exceptions);
     } catch (error) {
         console.error('載入固定排程失敗:', error);
     }
 }
 
-function renderRoutines(routines) {
+function renderRoutines(routines, exceptions = []) {
     // 更新計數
     const enabledCount = routines.filter(r => r.enabled).length;
     el.routineCount.textContent = enabledCount;
@@ -1308,15 +1320,22 @@ function renderRoutines(routines) {
         return;
     }
 
+    const exceptedIds = new Set(exceptions);
+
     el.routineItems.innerHTML = routines.map(routine => {
         const disabledClass = routine.enabled ? '' : 'disabled';
+        const isExcluded = exceptedIds.has(routine.id);
+        const excludedClass = isExcluded ? 'excluded-today' : '';
+        const excludedBadge = isExcluded ? '<span class="excluded-badge">本日已排除</span>' : '';
+
         return `
-            <div class="routine-item ${disabledClass}" data-id="${routine.id}">
+            <div class="routine-item ${disabledClass} ${excludedClass}" data-id="${routine.id}">
                 <input type="checkbox" class="routine-toggle" ${routine.enabled ? 'checked' : ''}
                        onchange="toggleRoutineEnabled(${routine.id})" title="啟用/停用" />
                 <div class="routine-time">${routine.start_time}~${routine.end_time}</div>
-                <div class="routine-title">${escapeHtml(routine.title)}</div>
+                <div class="routine-title">${escapeHtml(routine.title)}${excludedBadge}</div>
                 <div class="routine-actions">
+                    ${isExcluded ? `<button onclick="restoreRoutineForToday(${routine.id})" title="恢復本日" class="restore-btn">↩️</button>` : ''}
                     <button onclick="editRoutine(${routine.id}, '${escapeHtml(routine.title)}', '${routine.start_time}', '${routine.end_time}')" title="編輯">✏️</button>
                     <button class="danger" onclick="deleteRoutine(${routine.id})" title="刪除">×</button>
                 </div>
@@ -1468,5 +1487,47 @@ async function applyRoutinesToDate(date) {
     } catch (error) {
         console.error('套用固定排程失敗:', error);
         return 0;
+    }
+}
+
+async function excludeRoutineForToday(routineId) {
+    const date = el.scheduleDate.value;
+
+    if (!confirm('確定要將此固定排程從今日排除嗎？\n（可在「每日固定排程」區塊恢復）')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/routines/${routineId}/exclude`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date })
+        });
+
+        if (response.ok) {
+            await loadSchedule(date);
+            await loadRoutines(); // 重新載入以更新狀態
+        }
+    } catch (error) {
+        console.error('排除固定排程失敗:', error);
+    }
+}
+
+async function restoreRoutineForToday(routineId) {
+    const date = el.scheduleDate.value;
+
+    try {
+        const response = await fetch(`/api/routines/${routineId}/restore`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date })
+        });
+
+        if (response.ok) {
+            await loadSchedule(date);
+            await loadRoutines();
+        }
+    } catch (error) {
+        console.error('恢復固定排程失敗:', error);
     }
 }

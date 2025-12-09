@@ -66,9 +66,16 @@ class SimpleDatabase:
                 end_time TEXT NOT NULL,
                 completed BOOLEAN DEFAULT 0,
                 display_order INTEGER DEFAULT 0,
+                routine_id INTEGER DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # 檢查並添加 routine_id 欄位（如果是舊資料庫）
+        try:
+            cursor.execute("SELECT routine_id FROM schedule_items LIMIT 1")
+        except:
+            cursor.execute("ALTER TABLE schedule_items ADD COLUMN routine_id INTEGER DEFAULT NULL")
 
         # 建立 UNIQUE 索引防止重複排程
         try:
@@ -90,6 +97,17 @@ class SimpleDatabase:
                 enabled BOOLEAN DEFAULT 1,
                 display_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # 固定排程例外表（記錄某天排除某個固定排程）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS routine_exceptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                routine_id INTEGER NOT NULL,
+                exception_date TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(routine_id, exception_date)
             )
         ''')
 
@@ -194,15 +212,15 @@ class SimpleDatabase:
 
     # ===== 排程 =====
 
-    def add_schedule_item(self, date_str: str, title: str, start_time: str, end_time: str) -> int:
+    def add_schedule_item(self, date_str: str, title: str, start_time: str, end_time: str, routine_id: int = None) -> int:
         """新增排程項目（如果重複則忽略）"""
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                INSERT INTO schedule_items (date, title, start_time, end_time)
-                VALUES (?, ?, ?, ?)
-            ''', (date_str, title, start_time, end_time))
+                INSERT INTO schedule_items (date, title, start_time, end_time, routine_id)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (date_str, title, start_time, end_time, routine_id))
             item_id = cursor.lastrowid
             conn.commit()
         except sqlite3.IntegrityError:
@@ -457,17 +475,24 @@ class SimpleDatabase:
         conn.close()
 
     def apply_routines_to_date(self, date_str: str) -> int:
-        """將啟用的固定排程套用到指定日期，返回新增數量"""
+        """將啟用的固定排程套用到指定日期（排除有例外的），返回新增數量"""
         routines = self.get_routines(enabled_only=True)
+        exceptions = self.get_routine_exceptions(date_str)
+        excepted_routine_ids = set(exceptions)
         added_count = 0
 
         for routine in routines:
+            # 跳過有例外的固定排程
+            if routine['id'] in excepted_routine_ids:
+                continue
+
             try:
                 self.add_schedule_item(
                     date_str,
                     routine['title'],
                     routine['start_time'],
-                    routine['end_time']
+                    routine['end_time'],
+                    routine_id=routine['id']
                 )
                 added_count += 1
             except:
@@ -475,3 +500,55 @@ class SimpleDatabase:
                 pass
 
         return added_count
+
+    # ===== 固定排程例外管理 =====
+
+    def add_routine_exception(self, routine_id: int, exception_date: str):
+        """新增固定排程例外（某天排除某個固定排程）"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                INSERT INTO routine_exceptions (routine_id, exception_date)
+                VALUES (?, ?)
+            ''', (routine_id, exception_date))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # 已存在則忽略
+            pass
+        finally:
+            conn.close()
+
+    def remove_routine_exception(self, routine_id: int, exception_date: str):
+        """移除固定排程例外（恢復某天的固定排程）"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            DELETE FROM routine_exceptions
+            WHERE routine_id = ? AND exception_date = ?
+        ''', (routine_id, exception_date))
+        conn.commit()
+        conn.close()
+
+    def get_routine_exceptions(self, date_str: str) -> List[int]:
+        """取得指定日期的所有例外 routine_id"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT routine_id FROM routine_exceptions
+            WHERE exception_date = ?
+        ''', (date_str,))
+        routine_ids = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return routine_ids
+
+    def delete_schedule_by_routine(self, routine_id: int, date_str: str):
+        """刪除指定日期來自特定固定排程的排程項目"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            DELETE FROM schedule_items
+            WHERE routine_id = ? AND date = ?
+        ''', (routine_id, date_str))
+        conn.commit()
+        conn.close()

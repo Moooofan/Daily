@@ -686,6 +686,67 @@ def apply_routines():
     })
 
 
+@app.route('/api/routines/<int:routine_id>/exclude', methods=['POST'])
+def exclude_routine_for_date(routine_id):
+    """將固定排程從指定日期排除（本日不執行）"""
+    data = request.json
+    date_str = data.get('date', date.today().isoformat())
+
+    # 新增例外記錄
+    db.add_routine_exception(routine_id, date_str)
+
+    # 刪除該日期已存在的該固定排程項目
+    db.delete_schedule_by_routine(routine_id, date_str)
+
+    return jsonify({
+        'success': True,
+        'message': f'已將固定排程從 {date_str} 排除'
+    })
+
+
+@app.route('/api/routines/<int:routine_id>/restore', methods=['POST'])
+def restore_routine_for_date(routine_id):
+    """恢復固定排程到指定日期"""
+    data = request.json
+    date_str = data.get('date', date.today().isoformat())
+
+    # 移除例外記錄
+    db.remove_routine_exception(routine_id, date_str)
+
+    # 重新套用該固定排程
+    routine = None
+    routines = db.get_routines()
+    for r in routines:
+        if r['id'] == routine_id:
+            routine = r
+            break
+
+    if routine and routine.get('enabled'):
+        db.add_schedule_item(
+            date_str,
+            routine['title'],
+            routine['start_time'],
+            routine['end_time'],
+            routine_id=routine['id']
+        )
+
+    return jsonify({
+        'success': True,
+        'message': f'已恢復固定排程到 {date_str}'
+    })
+
+
+@app.route('/api/routines/exceptions/<date_str>', methods=['GET'])
+def get_routine_exceptions(date_str):
+    """取得指定日期的固定排程例外列表"""
+    exceptions = db.get_routine_exceptions(date_str)
+    return jsonify({
+        'success': True,
+        'exceptions': exceptions,
+        'date': date_str
+    })
+
+
 if __name__ == '__main__':
     port = 5001
     print("=" * 60)

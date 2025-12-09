@@ -1751,3 +1751,58 @@ body {
         padding: 5px 0;
     }
 }
+
+/* ===== 固定排程例外功能 ===== */
+
+/* 來自固定排程的排程項目標記 */
+.routine-badge {
+    font-size: 0.75rem;
+    margin-right: 6px;
+    opacity: 0.7;
+}
+
+.schedule-item.from-routine {
+    border-left: 3px solid var(--light-gray);
+}
+
+/* 選單中的警告按鈕（本日排除） */
+.schedule-menu button.warning {
+    color: #b85c00;
+}
+
+.schedule-menu button.warning:hover {
+    background: #fff8e6;
+}
+
+/* 本日已排除的固定排程項目 */
+.routine-item.excluded-today {
+    opacity: 0.5;
+    background: #f9f9f9;
+}
+
+.routine-item.excluded-today .routine-title,
+.routine-item.excluded-today .routine-time {
+    text-decoration: line-through;
+    color: var(--light-gray);
+}
+
+.excluded-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: #b85c00;
+    background: #fff3e0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+/* 恢復按鈕 */
+.restore-btn {
+    background: #e8f5e9 !important;
+    border-color: #4caf50 !important;
+}
+
+.restore-btn:hover {
+    background: #c8e6c9 !important;
+}
