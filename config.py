@@ -24,7 +24,10 @@ class Config:
     GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/oauth2callback')
     GOOGLE_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
-    # 資料庫 - 支援環境變數設定路徑
+    # 資料庫設定
+    # PostgreSQL 連接字串（Zeabur 會自動注入 DATABASE_URL）
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    # SQLite 備用路徑（本地開發用）
     DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/daily.db')
 
     # 環境判斷
