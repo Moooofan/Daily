@@ -487,13 +487,20 @@ async function addTodo() {
     if (!content) return;
 
     try {
+        const todoData = {
+            content,
+            type: state.currentTodoType
+        };
+
+        // 日待辦需要指定日期
+        if (state.currentTodoType === 'daily') {
+            todoData.target_date = el.scheduleDate.value;
+        }
+
         const response = await fetch('/api/todos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                content,
-                type: state.currentTodoType
-            })
+            body: JSON.stringify(todoData)
         });
 
         if (response.ok) {

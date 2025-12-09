@@ -76,7 +76,8 @@ def add_todo():
     """新增待辦事項"""
     data = request.json
     todo_type = data.get('type', 'daily')  # 預設為日待辦
-    todo_id = db.add_todo(data['content'], todo_type)
+    target_date = data.get('target_date')  # 日待辦的目標日期
+    todo_id = db.add_todo(data['content'], todo_type, target_date=target_date)
     return jsonify({'id': todo_id, 'success': True})
 
 
