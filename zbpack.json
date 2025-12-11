@@ -1,4 +1,3 @@
 {
-  "start_command": "gunicorn app:app --bind 0.0.0.0:$PORT",
-  "build_command": "pip install psycopg2-binary"
+  "start_command": "gunicorn app:app --bind 0.0.0.0:$PORT"
 }
