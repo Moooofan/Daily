@@ -13,18 +13,27 @@ class SimpleDatabase:
 
         if self.use_postgres:
             try:
-                import psycopg2
-                from psycopg2.extras import RealDictCursor
-                self.psycopg2 = psycopg2
-                self.RealDictCursor = RealDictCursor
-                print(f"✅ 使用 PostgreSQL 資料庫")
+                import psycopg
+                from psycopg.rows import dict_row
+                self.psycopg = psycopg
+                self.dict_row = dict_row
+                print(f"✅ 使用 PostgreSQL 資料庫 (psycopg3)")
             except ImportError:
-                print("⚠️ psycopg2 未安裝，回退到 SQLite")
-                self.use_postgres = False
-                import sqlite3
-                self.sqlite3 = sqlite3
-                self._ensure_data_dir()
-                print(f"✅ 使用 SQLite 資料庫: {Config.DATABASE_PATH}")
+                try:
+                    # 回退嘗試 psycopg2
+                    import psycopg2
+                    from psycopg2.extras import RealDictCursor
+                    self.psycopg = None
+                    self.psycopg2 = psycopg2
+                    self.RealDictCursor = RealDictCursor
+                    print(f"✅ 使用 PostgreSQL 資料庫 (psycopg2)")
+                except ImportError:
+                    print("⚠️ psycopg 未安裝，回退到 SQLite")
+                    self.use_postgres = False
+                    import sqlite3
+                    self.sqlite3 = sqlite3
+                    self._ensure_data_dir()
+                    print(f"✅ 使用 SQLite 資料庫: {Config.DATABASE_PATH}")
         else:
             import sqlite3
             self.sqlite3 = sqlite3
@@ -42,7 +51,12 @@ class SimpleDatabase:
     def _get_connection(self):
         """取得資料庫連線"""
         if self.use_postgres:
-            conn = self.psycopg2.connect(Config.DATABASE_URL)
+            if hasattr(self, 'psycopg') and self.psycopg:
+                # psycopg3
+                conn = self.psycopg.connect(Config.DATABASE_URL)
+            else:
+                # psycopg2
+                conn = self.psycopg2.connect(Config.DATABASE_URL)
             return conn
         else:
             conn = self.sqlite3.connect(Config.DATABASE_PATH)
@@ -68,8 +82,14 @@ class SimpleDatabase:
         """查詢並返回所有結果"""
         if self.use_postgres:
             query = query.replace('?', '%s')
-            conn = self.psycopg2.connect(Config.DATABASE_URL)
-            cursor = conn.cursor(cursor_factory=self.RealDictCursor)
+            if hasattr(self, 'psycopg') and self.psycopg:
+                # psycopg3
+                conn = self.psycopg.connect(Config.DATABASE_URL)
+                cursor = conn.cursor(row_factory=self.dict_row)
+            else:
+                # psycopg2
+                conn = self.psycopg2.connect(Config.DATABASE_URL)
+                cursor = conn.cursor(cursor_factory=self.RealDictCursor)
         else:
             conn = self.sqlite3.connect(Config.DATABASE_PATH)
             conn.row_factory = self.sqlite3.Row
@@ -89,8 +109,14 @@ class SimpleDatabase:
         """查詢並返回單一結果"""
         if self.use_postgres:
             query = query.replace('?', '%s')
-            conn = self.psycopg2.connect(Config.DATABASE_URL)
-            cursor = conn.cursor(cursor_factory=self.RealDictCursor)
+            if hasattr(self, 'psycopg') and self.psycopg:
+                # psycopg3
+                conn = self.psycopg.connect(Config.DATABASE_URL)
+                cursor = conn.cursor(row_factory=self.dict_row)
+            else:
+                # psycopg2
+                conn = self.psycopg2.connect(Config.DATABASE_URL)
+                cursor = conn.cursor(cursor_factory=self.RealDictCursor)
         else:
             conn = self.sqlite3.connect(Config.DATABASE_PATH)
             conn.row_factory = self.sqlite3.Row
