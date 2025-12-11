@@ -12,11 +12,19 @@ class SimpleDatabase:
         self.use_postgres = bool(Config.DATABASE_URL)
 
         if self.use_postgres:
-            import psycopg2
-            from psycopg2.extras import RealDictCursor
-            self.psycopg2 = psycopg2
-            self.RealDictCursor = RealDictCursor
-            print(f"✅ 使用 PostgreSQL 資料庫")
+            try:
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                self.psycopg2 = psycopg2
+                self.RealDictCursor = RealDictCursor
+                print(f"✅ 使用 PostgreSQL 資料庫")
+            except ImportError:
+                print("⚠️ psycopg2 未安裝，回退到 SQLite")
+                self.use_postgres = False
+                import sqlite3
+                self.sqlite3 = sqlite3
+                self._ensure_data_dir()
+                print(f"✅ 使用 SQLite 資料庫: {Config.DATABASE_PATH}")
         else:
             import sqlite3
             self.sqlite3 = sqlite3
