@@ -33,6 +33,9 @@ class Config:
     # 環境判斷
     IS_PRODUCTION = os.getenv('ENVIRONMENT', 'development') == 'production'
 
+    # 管理員設定（可用逗號分隔多個 Email）
+    ADMIN_EMAILS = [e.strip() for e in os.getenv('ADMIN_EMAILS', '').split(',') if e.strip()]
+
     # 預設時間設定
     DEFAULT_WAKE_TIME = '07:00'
     DEFAULT_SLEEP_TIME = '23:00'

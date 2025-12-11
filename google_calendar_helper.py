@@ -10,7 +10,12 @@ from config import Config
 class GoogleCalendarHelper:
     """Google Calendar API 輔助類別"""
 
-    SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+    SCOPES = [
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'openid'
+    ]
 
     def __init__(self):
         """初始化 Google Calendar Helper"""
@@ -261,4 +266,28 @@ class GoogleCalendarHelper:
             'client_id': credentials.client_id,
             'client_secret': credentials.client_secret,
             'scopes': credentials.scopes
+        }
+
+    def get_user_info(self, credentials):
+        """取得 Google 用戶資訊
+
+        Args:
+            credentials: Google OAuth2 憑證物件
+
+        Returns:
+            用戶資訊字典（包含 id, email, name, picture）
+        """
+        from googleapiclient.discovery import build
+
+        # 建立 People API 服務
+        service = build('oauth2', 'v2', credentials=credentials)
+
+        # 取得用戶資訊
+        user_info = service.userinfo().get().execute()
+
+        return {
+            'id': user_info.get('id'),
+            'email': user_info.get('email'),
+            'name': user_info.get('name'),
+            'picture': user_info.get('picture')
         }
