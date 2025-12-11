@@ -1,45 +1,24 @@
-"""資料庫模型 - 支援 PostgreSQL 和 SQLite，含多用戶支援"""
+"""資料庫模型 - 僅支援 PostgreSQL (pg8000)"""
 import os
+import urllib.parse
 from datetime import datetime, date
 from typing import List, Dict, Optional
 from config import Config
+import pg8000
 
 
 class SimpleDatabase:
-    """支援 PostgreSQL 和 SQLite 的資料庫類別"""
+    """PostgreSQL 資料庫類別 (使用 pg8000)"""
 
     def __init__(self):
-        self.use_postgres = bool(Config.DATABASE_URL)
+        if not Config.DATABASE_URL:
+            raise ValueError("DATABASE_URL 環境變數未設定！請在 Zeabur 設定 PostgreSQL 資料庫。")
 
-        if self.use_postgres:
-            try:
-                import pg8000
-                self.pg8000 = pg8000
-                print(f"✅ 使用 PostgreSQL 資料庫 (pg8000)")
-            except ImportError:
-                print("⚠️ pg8000 未安裝，回退到 SQLite")
-                self.use_postgres = False
-                import sqlite3
-                self.sqlite3 = sqlite3
-                self._ensure_data_dir()
-                print(f"✅ 使用 SQLite 資料庫: {Config.DATABASE_PATH}")
-        else:
-            import sqlite3
-            self.sqlite3 = sqlite3
-            self._ensure_data_dir()
-            print(f"✅ 使用 SQLite 資料庫: {Config.DATABASE_PATH}")
-
+        print(f"✅ 使用 PostgreSQL 資料庫 (pg8000)")
         self._init_db()
-
-    def _ensure_data_dir(self):
-        """確保 SQLite 資料目錄存在"""
-        dir_path = os.path.dirname(Config.DATABASE_PATH)
-        if dir_path:
-            os.makedirs(dir_path, exist_ok=True)
 
     def _parse_database_url(self):
         """解析 DATABASE_URL"""
-        import urllib.parse
         url = urllib.parse.urlparse(Config.DATABASE_URL)
         return {
             'host': url.hostname,
@@ -51,20 +30,12 @@ class SimpleDatabase:
 
     def _get_connection(self):
         """取得資料庫連線"""
-        if self.use_postgres:
-            params = self._parse_database_url()
-            conn = self.pg8000.connect(**params)
-            return conn
-        else:
-            conn = self.sqlite3.connect(Config.DATABASE_PATH)
-            conn.row_factory = self.sqlite3.Row
-            return conn
+        params = self._parse_database_url()
+        return pg8000.connect(**params)
 
     def _execute(self, query: str, params: tuple = None):
-        """執行 SQL（自動處理參數佔位符差異）"""
-        if self.use_postgres:
-            query = query.replace('?', '%s')
-
+        """執行 SQL"""
+        query = query.replace('?', '%s')
         conn = self._get_connection()
         cursor = conn.cursor()
 
@@ -77,14 +48,9 @@ class SimpleDatabase:
 
     def _fetchall(self, query: str, params: tuple = None) -> List[Dict]:
         """查詢並返回所有結果"""
-        if self.use_postgres:
-            query = query.replace('?', '%s')
-            conn = self._get_connection()
-            cursor = conn.cursor()
-        else:
-            conn = self.sqlite3.connect(Config.DATABASE_PATH)
-            conn.row_factory = self.sqlite3.Row
-            cursor = conn.cursor()
+        query = query.replace('?', '%s')
+        conn = self._get_connection()
+        cursor = conn.cursor()
 
         if params:
             cursor.execute(query, params)
@@ -92,26 +58,15 @@ class SimpleDatabase:
             cursor.execute(query)
 
         rows = cursor.fetchall()
-
-        if self.use_postgres:
-            # pg8000 返回 tuple，需要轉換為 dict
-            columns = [desc[0] for desc in cursor.description]
-            conn.close()
-            return [dict(zip(columns, row)) for row in rows]
-        else:
-            conn.close()
-            return [dict(row) for row in rows]
+        columns = [desc[0] for desc in cursor.description]
+        conn.close()
+        return [dict(zip(columns, row)) for row in rows]
 
     def _fetchone(self, query: str, params: tuple = None) -> Optional[Dict]:
         """查詢並返回單一結果"""
-        if self.use_postgres:
-            query = query.replace('?', '%s')
-            conn = self._get_connection()
-            cursor = conn.cursor()
-        else:
-            conn = self.sqlite3.connect(Config.DATABASE_PATH)
-            conn.row_factory = self.sqlite3.Row
-            cursor = conn.cursor()
+        query = query.replace('?', '%s')
+        conn = self._get_connection()
+        cursor = conn.cursor()
 
         if params:
             cursor.execute(query, params)
@@ -119,210 +74,97 @@ class SimpleDatabase:
             cursor.execute(query)
 
         row = cursor.fetchone()
-
-        if self.use_postgres:
-            if row:
-                columns = [desc[0] for desc in cursor.description]
-                conn.close()
-                return dict(zip(columns, row))
+        if row:
+            columns = [desc[0] for desc in cursor.description]
             conn.close()
-            return None
-        else:
-            conn.close()
-            if row:
-                return dict(row)
-            return None
+            return dict(zip(columns, row))
+        conn.close()
+        return None
 
     def _init_db(self):
         """初始化資料庫結構"""
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        if self.use_postgres:
-            # PostgreSQL 語法
-            # 用戶表
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    google_id TEXT UNIQUE NOT NULL,
-                    email TEXT NOT NULL,
-                    name TEXT,
-                    picture TEXT,
-                    is_admin BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        # 用戶表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                google_id TEXT UNIQUE NOT NULL,
+                email TEXT NOT NULL,
+                name TEXT,
+                picture TEXT,
+                is_admin BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS todos (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
-                    content TEXT NOT NULL,
-                    type TEXT DEFAULT 'daily',
-                    estimated_minutes INTEGER DEFAULT 30,
-                    target_date TEXT,
-                    completed BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS todos (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                content TEXT NOT NULL,
+                type TEXT DEFAULT 'daily',
+                estimated_minutes INTEGER DEFAULT 30,
+                target_date TEXT,
+                completed BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS schedule_items (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
-                    date TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT NOT NULL,
-                    completed BOOLEAN DEFAULT FALSE,
-                    display_order INTEGER DEFAULT 0,
-                    routine_id INTEGER DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schedule_items (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                date TEXT NOT NULL,
+                title TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                completed BOOLEAN DEFAULT FALSE,
+                display_order INTEGER DEFAULT 0,
+                routine_id INTEGER DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-            # 建立 UNIQUE 索引（包含 user_id）
-            cursor.execute('''
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_schedule_unique
-                ON schedule_items(user_id, date, title, start_time, end_time)
-            ''')
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_schedule_unique
+            ON schedule_items(user_id, date, title, start_time, end_time)
+        ''')
 
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS daily_routines (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
-                    title TEXT NOT NULL,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT NOT NULL,
-                    enabled BOOLEAN DEFAULT TRUE,
-                    display_order INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_routines (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                title TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                enabled BOOLEAN DEFAULT TRUE,
+                display_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS routine_exceptions (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
-                    routine_id INTEGER NOT NULL,
-                    exception_date TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(user_id, routine_id, exception_date)
-                )
-            ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS routine_exceptions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                routine_id INTEGER NOT NULL,
+                exception_date TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, routine_id, exception_date)
+            )
+        ''')
 
-            # 遷移：如果舊資料沒有 user_id，加上欄位
-            try:
-                cursor.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS user_id INTEGER')
-                cursor.execute('ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS user_id INTEGER')
-                cursor.execute('ALTER TABLE daily_routines ADD COLUMN IF NOT EXISTS user_id INTEGER')
-                cursor.execute('ALTER TABLE routine_exceptions ADD COLUMN IF NOT EXISTS user_id INTEGER')
-            except:
-                pass
-
-        else:
-            # SQLite 語法
-            # 用戶表
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    google_id TEXT UNIQUE NOT NULL,
-                    email TEXT NOT NULL,
-                    name TEXT,
-                    picture TEXT,
-                    is_admin BOOLEAN DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS todos (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    content TEXT NOT NULL,
-                    type TEXT DEFAULT 'daily',
-                    estimated_minutes INTEGER DEFAULT 30,
-                    target_date TEXT,
-                    completed BOOLEAN DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-            ''')
-
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS schedule_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    date TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT NOT NULL,
-                    completed BOOLEAN DEFAULT 0,
-                    display_order INTEGER DEFAULT 0,
-                    routine_id INTEGER DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-            ''')
-
-            # 建立 UNIQUE 索引
-            try:
-                cursor.execute('DROP INDEX IF EXISTS idx_schedule_unique')
-                cursor.execute('''
-                    CREATE UNIQUE INDEX IF NOT EXISTS idx_schedule_unique
-                    ON schedule_items(user_id, date, title, start_time, end_time)
-                ''')
-            except:
-                pass
-
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS daily_routines (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    title TEXT NOT NULL,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT NOT NULL,
-                    enabled BOOLEAN DEFAULT 1,
-                    display_order INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-            ''')
-
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS routine_exceptions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    routine_id INTEGER NOT NULL,
-                    exception_date TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(user_id, routine_id, exception_date),
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-            ''')
-
-            # 遷移：檢查並添加 user_id 欄位
-            try:
-                cursor.execute('SELECT user_id FROM todos LIMIT 1')
-            except:
-                cursor.execute('ALTER TABLE todos ADD COLUMN user_id INTEGER')
-
-            try:
-                cursor.execute('SELECT user_id FROM schedule_items LIMIT 1')
-            except:
-                cursor.execute('ALTER TABLE schedule_items ADD COLUMN user_id INTEGER')
-
-            try:
-                cursor.execute('SELECT user_id FROM daily_routines LIMIT 1')
-            except:
-                cursor.execute('ALTER TABLE daily_routines ADD COLUMN user_id INTEGER')
-
-            try:
-                cursor.execute('SELECT user_id FROM routine_exceptions LIMIT 1')
-            except:
-                cursor.execute('ALTER TABLE routine_exceptions ADD COLUMN user_id INTEGER')
+        # 遷移：如果舊資料沒有 user_id，加上欄位
+        try:
+            cursor.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS user_id INTEGER')
+            cursor.execute('ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS user_id INTEGER')
+            cursor.execute('ALTER TABLE daily_routines ADD COLUMN IF NOT EXISTS user_id INTEGER')
+            cursor.execute('ALTER TABLE routine_exceptions ADD COLUMN IF NOT EXISTS user_id INTEGER')
+        except:
+            pass
 
         conn.commit()
         conn.close()
@@ -334,7 +176,6 @@ class SimpleDatabase:
         user = self._fetchone('SELECT * FROM users WHERE google_id = ?', (google_id,))
 
         if user:
-            # 更新最後登入時間
             conn, cursor = self._execute(
                 'UPDATE users SET last_login = CURRENT_TIMESTAMP, name = ?, picture = ? WHERE google_id = ?',
                 (name, picture, google_id)
@@ -343,26 +184,15 @@ class SimpleDatabase:
             conn.close()
             return self._fetchone('SELECT * FROM users WHERE google_id = ?', (google_id,))
         else:
-            # 建立新用戶
-            if self.use_postgres:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    'INSERT INTO users (google_id, email, name, picture) VALUES (%s, %s, %s, %s) RETURNING id',
-                    (google_id, email, name, picture)
-                )
-                user_id = cursor.fetchone()[0]
-                conn.commit()
-                conn.close()
-            else:
-                conn, cursor = self._execute(
-                    'INSERT INTO users (google_id, email, name, picture) VALUES (?, ?, ?, ?)',
-                    (google_id, email, name, picture)
-                )
-                user_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
-
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO users (google_id, email, name, picture) VALUES (%s, %s, %s, %s) RETURNING id',
+                (google_id, email, name, picture)
+            )
+            user_id = cursor.fetchone()[0]
+            conn.commit()
+            conn.close()
             return self._fetchone('SELECT * FROM users WHERE id = ?', (user_id,))
 
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
@@ -387,24 +217,15 @@ class SimpleDatabase:
     def add_todo(self, content: str, todo_type: str = 'daily', estimated_minutes: int = 30,
                  target_date: str = None, user_id: int = None) -> int:
         """新增待辦事項"""
-        if self.use_postgres:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                'INSERT INTO todos (user_id, content, type, estimated_minutes, target_date) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                (user_id, content, todo_type, estimated_minutes, target_date)
-            )
-            todo_id = cursor.fetchone()[0]
-            conn.commit()
-            conn.close()
-        else:
-            conn, cursor = self._execute(
-                'INSERT INTO todos (user_id, content, type, estimated_minutes, target_date) VALUES (?, ?, ?, ?, ?)',
-                (user_id, content, todo_type, estimated_minutes, target_date)
-            )
-            todo_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO todos (user_id, content, type, estimated_minutes, target_date) VALUES (%s, %s, %s, %s, %s) RETURNING id',
+            (user_id, content, todo_type, estimated_minutes, target_date)
+        )
+        todo_id = cursor.fetchone()[0]
+        conn.commit()
+        conn.close()
         return todo_id
 
     def get_todos(self, todo_type: str = None, target_date: str = None, user_id: int = None) -> List[Dict]:
@@ -413,19 +234,26 @@ class SimpleDatabase:
         params = []
 
         if user_id is not None:
-            query += ' AND user_id = ?'
+            query += ' AND user_id = %s'
             params.append(user_id)
 
         if todo_type:
-            query += ' AND type = ?'
+            query += ' AND type = %s'
             params.append(todo_type)
 
         if target_date:
-            query += ' AND target_date = ?'
+            query += ' AND target_date = %s'
             params.append(target_date)
 
         query += ' ORDER BY created_at DESC'
-        return self._fetchall(query, tuple(params) if params else None)
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query, tuple(params) if params else None)
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        conn.close()
+        return [dict(zip(columns, row)) for row in rows]
 
     def delete_todo(self, todo_id: int, user_id: int = None):
         """刪除待辦事項"""
@@ -443,23 +271,23 @@ class SimpleDatabase:
         values = []
 
         if content is not None:
-            updates.append('content = ?')
+            updates.append('content = %s')
             values.append(content)
         if todo_type is not None:
-            updates.append('type = ?')
+            updates.append('type = %s')
             values.append(todo_type)
         if estimated_minutes is not None:
-            updates.append('estimated_minutes = ?')
+            updates.append('estimated_minutes = %s')
             values.append(estimated_minutes)
         if completed is not None:
-            updates.append('completed = ?')
+            updates.append('completed = %s')
             values.append(completed)
 
         if updates:
             values.append(todo_id)
-            query = f"UPDATE todos SET {', '.join(updates)} WHERE id = ?"
+            query = f"UPDATE todos SET {', '.join(updates)} WHERE id = %s"
             if user_id:
-                query += ' AND user_id = ?'
+                query += ' AND user_id = %s'
                 values.append(user_id)
             conn, cursor = self._execute(query, tuple(values))
             conn.commit()
@@ -486,27 +314,17 @@ class SimpleDatabase:
                           routine_id: int = None, user_id: int = None) -> int:
         """新增排程項目（如果重複則忽略）"""
         try:
-            if self.use_postgres:
-                conn = self._get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    'INSERT INTO schedule_items (user_id, date, title, start_time, end_time, routine_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
-                    (user_id, date_str, title, start_time, end_time, routine_id)
-                )
-                item_id = cursor.fetchone()[0]
-                conn.commit()
-                conn.close()
-            else:
-                conn, cursor = self._execute(
-                    'INSERT INTO schedule_items (user_id, date, title, start_time, end_time, routine_id) VALUES (?, ?, ?, ?, ?, ?)',
-                    (user_id, date_str, title, start_time, end_time, routine_id)
-                )
-                item_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO schedule_items (user_id, date, title, start_time, end_time, routine_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
+                (user_id, date_str, title, start_time, end_time, routine_id)
+            )
+            item_id = cursor.fetchone()[0]
+            conn.commit()
+            conn.close()
             return item_id
         except Exception as e:
-            # UNIQUE 約束違反，查詢現有項目
             if user_id:
                 row = self._fetchone(
                     'SELECT id FROM schedule_items WHERE user_id = ? AND date = ? AND title = ? AND start_time = ? AND end_time = ?',
@@ -539,26 +357,26 @@ class SimpleDatabase:
         values = []
 
         if title is not None:
-            updates.append('title = ?')
+            updates.append('title = %s')
             values.append(title)
         if start_time is not None:
-            updates.append('start_time = ?')
+            updates.append('start_time = %s')
             values.append(start_time)
         if end_time is not None:
-            updates.append('end_time = ?')
+            updates.append('end_time = %s')
             values.append(end_time)
         if completed is not None:
-            updates.append('completed = ?')
+            updates.append('completed = %s')
             values.append(completed)
         if display_order is not None:
-            updates.append('display_order = ?')
+            updates.append('display_order = %s')
             values.append(display_order)
 
         if updates:
             values.append(item_id)
-            query = f"UPDATE schedule_items SET {', '.join(updates)} WHERE id = ?"
+            query = f"UPDATE schedule_items SET {', '.join(updates)} WHERE id = %s"
             if user_id:
-                query += ' AND user_id = ?'
+                query += ' AND user_id = %s'
                 values.append(user_id)
             conn, cursor = self._execute(query, tuple(values))
             conn.commit()
@@ -679,24 +497,15 @@ class SimpleDatabase:
 
     def add_routine(self, title: str, start_time: str, end_time: str, user_id: int = None) -> int:
         """新增每日固定排程"""
-        if self.use_postgres:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                'INSERT INTO daily_routines (user_id, title, start_time, end_time) VALUES (%s, %s, %s, %s) RETURNING id',
-                (user_id, title, start_time, end_time)
-            )
-            routine_id = cursor.fetchone()[0]
-            conn.commit()
-            conn.close()
-        else:
-            conn, cursor = self._execute(
-                'INSERT INTO daily_routines (user_id, title, start_time, end_time) VALUES (?, ?, ?, ?)',
-                (user_id, title, start_time, end_time)
-            )
-            routine_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO daily_routines (user_id, title, start_time, end_time) VALUES (%s, %s, %s, %s) RETURNING id',
+            (user_id, title, start_time, end_time)
+        )
+        routine_id = cursor.fetchone()[0]
+        conn.commit()
+        conn.close()
         return routine_id
 
     def get_routines(self, enabled_only: bool = False, user_id: int = None) -> List[Dict]:
@@ -705,14 +514,21 @@ class SimpleDatabase:
         params = []
 
         if user_id is not None:
-            query += ' AND user_id = ?'
+            query += ' AND user_id = %s'
             params.append(user_id)
 
         if enabled_only:
             query += ' AND enabled = TRUE'
 
         query += ' ORDER BY start_time'
-        return self._fetchall(query, tuple(params) if params else None)
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query, tuple(params) if params else None)
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        conn.close()
+        return [dict(zip(columns, row)) for row in rows]
 
     def update_routine(self, routine_id: int, title: str = None, start_time: str = None,
                        end_time: str = None, enabled: bool = None, user_id: int = None):
@@ -721,23 +537,23 @@ class SimpleDatabase:
         values = []
 
         if title is not None:
-            updates.append('title = ?')
+            updates.append('title = %s')
             values.append(title)
         if start_time is not None:
-            updates.append('start_time = ?')
+            updates.append('start_time = %s')
             values.append(start_time)
         if end_time is not None:
-            updates.append('end_time = ?')
+            updates.append('end_time = %s')
             values.append(end_time)
         if enabled is not None:
-            updates.append('enabled = ?')
+            updates.append('enabled = %s')
             values.append(enabled)
 
         if updates:
             values.append(routine_id)
-            query = f"UPDATE daily_routines SET {', '.join(updates)} WHERE id = ?"
+            query = f"UPDATE daily_routines SET {', '.join(updates)} WHERE id = %s"
             if user_id:
-                query += ' AND user_id = ?'
+                query += ' AND user_id = %s'
                 values.append(user_id)
             conn, cursor = self._execute(query, tuple(values))
             conn.commit()
