@@ -7,4 +7,6 @@ google-auth-httplib2==0.2.0
 google-api-python-client==2.149.0
 python-dotenv==1.0.0
 gunicorn==21.2.0
-pg8000==1.30.3
+pg8000==1.31.2
+
+# Force rebuild
