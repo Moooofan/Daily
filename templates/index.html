@@ -16,6 +16,16 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <!-- 下一個事件倒數提示欄 -->
+    <div id="nextEventBar" class="next-event-bar" style="display: none;">
+        <div class="next-event-content">
+            <span class="next-event-label">接下來</span>
+            <span id="nextEventTitle" class="next-event-title"></span>
+            <span id="nextEventCountdown" class="next-event-countdown"></span>
+        </div>
+        <button id="dismissEventBar" class="dismiss-event-btn" title="關閉">×</button>
+    </div>
+
     <div class="container">
         <!-- 標題區 -->
         <header class="header">

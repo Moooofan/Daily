@@ -6,7 +6,10 @@ const state = {
     currentEditType: null, // 'todo' or 'schedule'
     currentTodoType: 'daily', // 'daily', 'weekly', 'monthly'
     recognition: null,
-    currentRoutineId: null // 固定排程編輯用
+    currentRoutineId: null, // 固定排程編輯用
+    nextEvent: null, // 下一個事件
+    countdownInterval: null, // 倒數計時器
+    eventBarDismissed: false // 用戶是否關閉了事件欄
 };
 
 // DOM 元素
@@ -106,6 +109,12 @@ function init() {
 
     // 檢查是否需要顯示匯入彈窗
     checkAndShowImportModal();
+
+    // 初始化下一個事件倒數提示
+    initNextEventCountdown();
+
+    // 初始化手機通知
+    initNotifications();
 }
 
 // 初始化時間選擇器
@@ -1535,5 +1544,240 @@ async function restoreRoutineForToday(routineId) {
         }
     } catch (error) {
         console.error('恢復固定排程失敗:', error);
+    }
+}
+
+// ===== 下一個事件倒數提示 =====
+
+// 初始化事件倒數功能
+function initNextEventCountdown() {
+    const nextEventBar = document.getElementById('nextEventBar');
+    const dismissBtn = document.getElementById('dismissEventBar');
+
+    if (!nextEventBar) return;
+
+    // 關閉按鈕事件
+    dismissBtn.addEventListener('click', () => {
+        state.eventBarDismissed = true;
+        hideNextEventBar();
+    });
+
+    // 開始倒數計時
+    updateNextEvent();
+    state.countdownInterval = setInterval(updateCountdown, 1000);
+
+    // 每分鐘更新下一個事件
+    setInterval(updateNextEvent, 60000);
+}
+
+// 獲取下一個事件（合併排程和 Google Calendar）
+async function updateNextEvent() {
+    if (state.eventBarDismissed) return;
+
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    try {
+        // 獲取今日排程
+        const scheduleResponse = await fetch(`/api/schedule/${today}`);
+        const schedule = await scheduleResponse.json();
+
+        // 獲取 Google Calendar 事件
+        let calendarEvents = [];
+        try {
+            const calendarResponse = await fetch(`/api/calendar/events?date=${today}`);
+            if (calendarResponse.ok) {
+                const calendarData = await calendarResponse.json();
+                if (calendarData.events) {
+                    calendarEvents = calendarData.events;
+                }
+            }
+        } catch (e) {
+            // Google Calendar 可能未連接，忽略錯誤
+        }
+
+        // 合併所有事件
+        const allEvents = [];
+
+        // 處理排程事件
+        schedule.forEach(item => {
+            if (item.completed) return;
+            const [hours, mins] = item.start_time.split(':').map(Number);
+            const eventTime = hours * 60 + mins;
+            if (eventTime > currentTime) {
+                allEvents.push({
+                    title: item.title,
+                    start_time: item.start_time,
+                    eventTime: eventTime,
+                    source: 'schedule'
+                });
+            }
+        });
+
+        // 處理 Google Calendar 事件
+        calendarEvents.forEach(event => {
+            const [hours, mins] = event.start_time.split(':').map(Number);
+            const eventTime = hours * 60 + mins;
+            if (eventTime > currentTime) {
+                allEvents.push({
+                    title: event.title,
+                    start_time: event.start_time,
+                    eventTime: eventTime,
+                    source: 'calendar'
+                });
+            }
+        });
+
+        // 排序，找出最近的事件
+        allEvents.sort((a, b) => a.eventTime - b.eventTime);
+
+        if (allEvents.length > 0) {
+            state.nextEvent = allEvents[0];
+            showNextEventBar();
+            updateCountdown();
+        } else {
+            state.nextEvent = null;
+            hideNextEventBar();
+        }
+    } catch (error) {
+        console.error('獲取下一個事件失敗:', error);
+    }
+}
+
+// 更新倒數計時顯示
+function updateCountdown() {
+    if (!state.nextEvent || state.eventBarDismissed) return;
+
+    const nextEventCountdown = document.getElementById('nextEventCountdown');
+    if (!nextEventCountdown) return;
+
+    const now = new Date();
+    const [hours, mins] = state.nextEvent.start_time.split(':').map(Number);
+    const eventDate = new Date();
+    eventDate.setHours(hours, mins, 0, 0);
+
+    const diffMs = eventDate - now;
+
+    if (diffMs <= 0) {
+        // 事件已開始，更新下一個事件
+        updateNextEvent();
+        return;
+    }
+
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const remainingMins = diffMins % 60;
+
+    let countdownText;
+    if (diffHours > 0) {
+        countdownText = `${diffHours}h ${remainingMins}m`;
+    } else if (diffMins > 0) {
+        countdownText = `${diffMins}m`;
+    } else {
+        const diffSecs = Math.floor(diffMs / 1000);
+        countdownText = `${diffSecs}s`;
+    }
+
+    nextEventCountdown.textContent = `in ${countdownText}`;
+
+    // 根據時間設定樣式
+    nextEventCountdown.classList.remove('urgent', 'soon');
+    if (diffMins <= 5) {
+        nextEventCountdown.classList.add('urgent');
+    } else if (diffMins <= 15) {
+        nextEventCountdown.classList.add('soon');
+    }
+
+    // 更新標題
+    const nextEventTitle = document.getElementById('nextEventTitle');
+    if (nextEventTitle) {
+        const sourceIcon = state.nextEvent.source === 'calendar' ? '📅 ' : '';
+        nextEventTitle.textContent = sourceIcon + state.nextEvent.title;
+    }
+
+    // 手機通知（5分鐘前提醒）
+    if (diffMins === 5 && !state.nextEvent.notified) {
+        state.nextEvent.notified = true;
+        sendNotification(state.nextEvent.title, `將在 5 分鐘後開始`);
+    }
+}
+
+// 顯示事件欄
+function showNextEventBar() {
+    const bar = document.getElementById('nextEventBar');
+    if (bar && !state.eventBarDismissed) {
+        bar.style.display = 'flex';
+        document.body.classList.add('has-event-bar');
+    }
+}
+
+// 隱藏事件欄
+function hideNextEventBar() {
+    const bar = document.getElementById('nextEventBar');
+    if (bar) {
+        bar.style.display = 'none';
+        document.body.classList.remove('has-event-bar');
+    }
+}
+
+// ===== 手機通知功能 =====
+
+// 請求通知權限
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        console.log('此瀏覽器不支援通知');
+        return false;
+    }
+
+    if (Notification.permission === 'granted') {
+        return true;
+    }
+
+    if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+    }
+
+    return false;
+}
+
+// 發送通知
+async function sendNotification(title, body) {
+    const hasPermission = await requestNotificationPermission();
+    if (!hasPermission) return;
+
+    // 檢查是否在手機上或頁面在背景
+    if (document.hidden || /Mobi|Android/i.test(navigator.userAgent)) {
+        const notification = new Notification(`📅 ${title}`, {
+            body: body,
+            icon: '/static/icons/icon-192.png',
+            badge: '/static/icons/icon-192.png',
+            tag: 'next-event',
+            renotify: true,
+            requireInteraction: true
+        });
+
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+
+        // 也嘗試透過 Service Worker 發送（更可靠）
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'SHOW_NOTIFICATION',
+                title: `📅 ${title}`,
+                body: body
+            });
+        }
+    }
+}
+
+// 初始化時請求通知權限（手機優先）
+function initNotifications() {
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+        // 手機上自動請求權限
+        requestNotificationPermission();
     }
 }

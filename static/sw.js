@@ -1,5 +1,5 @@
 // Daily PWA Service Worker
-const CACHE_NAME = 'daily-v1';
+const CACHE_NAME = 'daily-v2';
 const urlsToCache = [
   '/',
   '/static/css/simple.css',
@@ -49,4 +49,43 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+});
+
+// 接收來自主頁面的通知請求
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    self.registration.showNotification(event.data.title, {
+      body: event.data.body,
+      icon: '/static/icons/icon-192.png',
+      badge: '/static/icons/icon-192.png',
+      tag: 'next-event',
+      renotify: true,
+      requireInteraction: true,
+      actions: [
+        { action: 'open', title: '查看' },
+        { action: 'dismiss', title: '關閉' }
+      ]
+    });
+  }
+});
+
+// 處理通知點擊
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'open' || !event.action) {
+    // 打開或聚焦到應用
+    event.waitUntil(
+      clients.matchAll({ type: 'window' }).then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow('/');
+        }
+      })
+    );
+  }
 });

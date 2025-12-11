@@ -1806,3 +1806,134 @@ body {
 .restore-btn:hover {
     background: #c8e6c9 !important;
 }
+
+/* ===== 下一個事件倒數提示欄 ===== */
+
+.next-event-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--black);
+    color: var(--white);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.next-event-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95rem;
+}
+
+.next-event-label {
+    color: var(--light-gray);
+    font-size: 0.85rem;
+}
+
+.next-event-title {
+    font-weight: 600;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.next-event-countdown {
+    background: var(--dark-gray);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* 時間緊迫時的顏色變化 */
+.next-event-countdown.urgent {
+    background: #c62828;
+    animation: pulse 1s infinite;
+}
+
+.next-event-countdown.soon {
+    background: #ef6c00;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.dismiss-event-btn {
+    background: none;
+    border: none;
+    color: var(--light-gray);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: color 0.2s;
+}
+
+.dismiss-event-btn:hover {
+    color: var(--white);
+}
+
+/* 當事件欄顯示時，讓 body 有頂部空間 */
+body.has-event-bar {
+    padding-top: 52px;
+}
+
+body.has-event-bar .container {
+    padding-top: 20px;
+}
+
+/* 手機版樣式 */
+@media (max-width: 768px) {
+    .next-event-bar {
+        padding: 10px 15px;
+    }
+
+    .next-event-content {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.85rem;
+    }
+
+    .next-event-label {
+        display: none;
+    }
+
+    .next-event-title {
+        max-width: 200px;
+        font-size: 0.9rem;
+    }
+
+    .next-event-countdown {
+        font-size: 0.8rem;
+        min-width: 80px;
+        padding: 3px 10px;
+    }
+
+    body.has-event-bar {
+        padding-top: 48px;
+    }
+}
