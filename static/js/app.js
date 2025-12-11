@@ -640,8 +640,7 @@ function renderSchedule(schedule) {
                     <button class="schedule-menu-btn" onclick="toggleScheduleMenu(${item.id})">⋮</button>
                     <div class="schedule-menu" id="menu-${item.id}" style="display: none;">
                         <button onclick="duplicateSchedule(${item.id})">複製</button>
-                        ${isFromRoutine ? `<button onclick="excludeRoutineForToday(${item.routine_id})" class="warning">本日排除</button>` : ''}
-                        <button onclick="deleteSchedule(${item.id})" class="danger">刪除</button>
+                        ${isFromRoutine ? `<button onclick="excludeRoutineForToday(${item.routine_id})" class="warning">本日排除</button>` : `<button onclick="deleteSchedule(${item.id})" class="danger">刪除</button>`}
                     </div>
                 </div>
             </div>
