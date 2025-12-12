@@ -1394,18 +1394,23 @@ body {
     color: var(--white);
 }
 
-/* ===== 手機版優化 ===== */
+/* ===== 手機版優化 - 現代卡片式設計 ===== */
 @media screen and (max-width: 480px) {
     /* 基本佈局 */
-    .container {
-        padding: 15px 10px;
-        padding-bottom: 80px; /* 為底部導航留空間 */
+    body {
+        background: #f5f5f7;
     }
 
-    /* 標題區更緊湊 */
+    .container {
+        padding: 20px 16px;
+        padding-bottom: 100px;
+    }
+
+    /* 標題區 */
     .header {
-        margin-bottom: 15px;
-        padding-bottom: 10px;
+        margin-bottom: 20px;
+        padding-bottom: 0;
+        border-bottom: none;
     }
 
     .header > div {
@@ -1413,198 +1418,414 @@ body {
     }
 
     .app-title {
-        font-size: 1.8rem;
+        font-size: 2rem;
+        font-weight: 700;
     }
 
     .app-subtitle {
-        display: none; /* 手機上隱藏副標題 */
+        display: none;
     }
 
     .logout-btn {
-        padding: 6px 12px;
-        font-size: 0.8rem;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        border-radius: 20px;
+        background: var(--white);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: none;
     }
 
-    /* 智能輸入區 */
+    /* 智能輸入區 - 卡片式 */
     .voice-section {
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+    }
+
+    .smart-input-container {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        border: none;
     }
 
     .smart-input-container textarea {
-        font-size: 16px; /* 防止 iOS 自動放大 */
+        font-size: 16px;
         padding: 12px;
+        border: 1px solid var(--very-light-gray);
+        border-radius: 12px;
+        background: #fafafa;
+    }
+
+    .smart-input-container textarea:focus {
+        border-color: var(--black);
+        background: var(--white);
+    }
+
+    .input-buttons {
+        margin-top: 12px;
+    }
+
+    .voice-btn-small {
+        width: 48px;
+        height: 48px;
+        border-radius: 24px;
+        background: #f0f0f0;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     }
 
     .process-btn {
-        padding: 10px 16px;
-        font-size: 0.9rem;
+        padding: 12px 24px;
+        font-size: 0.95rem;
+        border-radius: 24px;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
 
-    /* 主要內容區改為單欄 */
+    /* 主要內容區 */
     .content-grid {
         grid-template-columns: 1fr;
-        gap: 15px;
+        gap: 16px;
     }
 
-    /* 面板樣式 */
+    /* 面板 - 卡片式 */
     .panel {
-        padding: 12px;
-        border-radius: 8px;
+        background: var(--white);
+        border: none;
+        border-radius: 16px;
+        padding: 20px 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
 
     .panel h2 {
-        font-size: 1.1rem;
-        margin-bottom: 10px;
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--black);
     }
 
-    /* 分頁按鈕 - 更大的觸控區域 */
-    .tabs {
-        margin-bottom: 12px;
+    /* 分頁按鈕 - 膠囊式 */
+    .todo-tabs {
+        background: #f0f0f0;
+        border-radius: 12px;
+        padding: 4px;
+        border: none;
+        gap: 0;
     }
 
     .tab-btn {
-        padding: 10px 14px;
-        font-size: 0.85rem;
-        min-height: 44px;
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        border-radius: 10px;
+        border: none;
+        background: transparent;
+        min-height: 40px;
+        transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+        background: var(--white);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border: none;
+    }
+
+    /* 輸入框 */
+    .input-group {
+        gap: 10px;
+    }
+
+    .input-group input {
+        font-size: 16px;
+        padding: 14px 16px;
+        border: 1px solid var(--very-light-gray);
+        border-radius: 12px;
+        background: #fafafa;
+    }
+
+    .input-group input:focus {
+        background: var(--white);
+        border-color: var(--black);
+    }
+
+    .input-group button {
+        min-width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        font-size: 1.3rem;
+        border: none;
+        background: var(--black);
+        color: var(--white);
+    }
+
+    /* 待辦項目 - 卡片式 */
+    .todo-item {
+        background: #fafafa;
+        border: none;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+    }
+
+    .todo-item:hover,
+    .todo-item:active {
+        background: #f0f0f0;
+    }
+
+    .todo-checkbox {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+    }
+
+    .todo-content {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .todo-time {
+        font-size: 0.8rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        background: var(--very-light-gray);
+        border: none;
+    }
+
+    .todo-actions button {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: none;
+        background: transparent;
     }
 
     /* 排程控制區 */
     .schedule-controls {
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 10px;
+        margin-bottom: 16px;
     }
 
     .schedule-controls .date-input {
         flex: 1;
         min-width: 140px;
         font-size: 16px;
-        padding: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--very-light-gray);
+        background: #fafafa;
     }
 
     .schedule-controls button {
-        padding: 10px 12px;
-        font-size: 0.85rem;
-        min-height: 44px;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        border-radius: 12px;
+        min-height: 48px;
+        border: none;
+        background: #f0f0f0;
     }
 
-    /* 隱藏不常用的按鈕文字，只顯示圖標 */
-    .google-btn,
-    .clear-btn {
-        padding: 10px;
+    .generate-btn {
+        background: var(--black) !important;
+        color: var(--white) !important;
+        border-radius: 12px !important;
     }
 
-    /* 輸入框 */
-    .input-group input {
-        font-size: 16px;
-        padding: 12px;
-    }
-
-    .input-group button {
-        min-width: 50px;
-        font-size: 1.2rem;
-    }
-
-    /* 列表項目 - 更大的觸控區域 */
-    .list-item,
-    .schedule-item,
-    .quick-task-item {
+    /* 排程項目 - 卡片式 */
+    .schedule-item {
+        background: #fafafa;
+        border: none;
+        border-radius: 12px;
         padding: 14px 12px;
-        min-height: 50px;
         margin-bottom: 8px;
+        grid-template-columns: 24px 85px 1fr 36px 40px;
+        gap: 10px;
     }
 
-    .list-item label {
-        font-size: 0.95rem;
-        gap: 12px;
+    .schedule-item:hover,
+    .schedule-item:active {
+        background: #f0f0f0;
+        border: none;
     }
 
-    /* Checkbox 更大 */
-    .list-item input[type="checkbox"],
-    .schedule-item input[type="checkbox"],
-    .quick-task-item input[type="checkbox"] {
+    .schedule-checkbox {
         width: 24px;
         height: 24px;
-        min-width: 24px;
-    }
-
-    /* 排程項目 */
-    .schedule-item {
-        flex-direction: row;
-        align-items: center;
+        border-radius: 50%;
     }
 
     .schedule-time {
         font-size: 0.85rem;
-        min-width: 90px;
         font-weight: 600;
+        color: var(--gray);
     }
 
     .schedule-title {
         font-size: 0.95rem;
-        flex: 1;
+        font-weight: 500;
     }
 
-    /* 三點選單按鈕 */
-    .list-item button,
-    .schedule-item button,
-    .quick-task-item button {
-        min-width: 44px;
-        min-height: 44px;
-        font-size: 1.2rem;
+    .schedule-edit-btn,
+    .schedule-menu-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: none;
+        background: transparent;
     }
 
-    /* 碎片任務區 */
-    .quick-tasks-section {
-        margin-top: 15px;
+    /* 碎片任務區 - 卡片式 */
+    .quick-tasks-section,
+    .routines-section {
+        background: var(--white);
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        margin-top: 16px;
     }
 
-    .quick-tasks-header {
-        padding: 12px;
+    .quick-tasks-header,
+    .routines-header {
+        padding: 16px;
         font-size: 1rem;
+        font-weight: 600;
+        background: var(--white);
+    }
+
+    .quick-task-item,
+    .routine-item {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .quick-task-item:last-child,
+    .routine-item:last-child {
+        border-bottom: none;
     }
 
     /* 建議框 */
     .suggestion-box {
-        padding: 12px;
-        margin-top: 12px;
-    }
-
-    .suggestion-box h3 {
-        font-size: 0.95rem;
-    }
-
-    .suggestion-box p {
-        font-size: 0.9rem;
-    }
-
-    /* 模態框 - 全屏風格 */
-    .modal-content {
-        width: 95%;
-        max-width: none;
-        max-height: 90vh;
-        padding: 20px 15px;
+        padding: 16px;
         border-radius: 12px;
+        background: #f8f8f8;
+        border-left: 4px solid var(--black);
+        margin-top: 16px;
+    }
+
+    /* 模態框 - 底部彈出式 */
+    .modal-content {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: none;
+        max-height: 85vh;
+        padding: 24px 20px;
+        padding-bottom: 40px;
+        border-radius: 24px 24px 0 0;
+        border: none;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
     }
 
     .modal-content h3 {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 20px;
     }
 
     .modal-content input {
         font-size: 16px;
-        padding: 14px;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid var(--very-light-gray);
+        background: #fafafa;
+    }
+
+    .modal-content input:focus {
+        background: var(--white);
+        border-color: var(--black);
     }
 
     .modal-actions {
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
+        margin-top: 20px;
     }
 
     .modal-actions button {
         width: 100%;
-        padding: 14px;
+        padding: 16px;
         font-size: 1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        border: none;
+    }
+
+    .modal-actions button:first-child {
+        background: var(--black);
+        color: var(--white);
+    }
+
+    .modal-actions button:last-child {
+        background: #f0f0f0;
+        color: var(--black);
+    }
+
+    /* 空狀態 */
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+    }
+
+    .empty-state::before {
+        content: '📝';
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    /* 時間選擇器 */
+    .time-inputs {
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+    }
+
+    .time-select-group {
+        gap: 4px;
+    }
+
+    .time-select {
+        padding: 14px 10px;
+        font-size: 1.1rem;
+        border-radius: 10px;
+        min-width: 60px;
+        border: 1px solid var(--very-light-gray);
+        background: #fafafa;
+    }
+
+    .time-separator {
+        width: 100%;
+        text-align: center;
+        padding: 8px 0;
+    }
+
+    /* 列表滾動區 */
+    .list {
+        max-height: 400px;
     }
 }
 
